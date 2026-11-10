@@ -244,23 +244,21 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
 .home .tcard>*{flex:none}
 .home .cta{margin-top:auto}
 .line .sm{display:none}
-@container (max-width:135px){
-  .home .tcard,.home .wkc{padding:9px 9px 10px}
-  .tcard .date,.tcard .left{display:none}
-  .home .hclock{font-size:27cqw;margin:4px 0 8px}
-  .home .hclock.long{font-size:17.5cqw}
-  .home .cta{padding:9px 9px;border-radius:12px}
-  .home .cta b{font-size:14px;line-height:1.2;white-space:normal}
-  .home .cta span{font-size:11.5px}
-  .wkh .ic{display:none}
-  .home .wk{gap:3px}
-  .home .line{font-size:12px;line-height:1.25}
-  .line .lg{display:none}
-  .line .sm{display:inline}
-  .tile{flex-direction:column;align-items:flex-start;justify-content:center;gap:6px;padding:8px 9px}
-  .tile .tx{flex:none;width:100%}
-  .tile .tv{white-space:normal;font-size:14.5px;line-height:1.2}
-}
+.home .blk[data-w="3"] .tcard,.home .blk[data-w="3"] .wkc{padding:9px 9px 10px}
+.home .blk[data-w="3"] .tcard .date,.home .blk[data-w="3"] .tcard .left{display:none}
+.home .blk[data-w="3"] .hclock{font-size:27cqw;margin:4px 0 8px}
+.home .blk[data-w="3"] .hclock.long{font-size:17.5cqw}
+.home .blk[data-w="3"] .cta{padding:9px 9px;border-radius:12px}
+.home .blk[data-w="3"] .cta b{font-size:14px;line-height:1.2;white-space:normal}
+.home .blk[data-w="3"] .cta span{font-size:11.5px}
+.home .blk[data-w="3"] .wkh .ic{display:none}
+.home .blk[data-w="3"] .wk{gap:3px}
+.home .blk[data-w="3"] .line{font-size:12px;line-height:1.25}
+.home .blk[data-w="3"] .line .lg{display:none}
+.home .blk[data-w="3"] .line .sm{display:inline}
+.home .blk[data-w="3"] .tile{flex-direction:column;align-items:flex-start;justify-content:center;gap:6px;padding:8px 9px}
+.home .blk[data-w="3"] .tile .tx{flex:none;width:100%}
+.home .blk[data-w="3"] .tile .tv{white-space:normal;font-size:14.5px;line-height:1.2}
 .acin{display:block;width:100%;margin-top:10px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:13px 14px;font:inherit;font-size:16px}
 .gbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-top:14px;background:#fff;color:#1f1f1f;border:1px solid #dadce0;border-radius:12px;padding:13px 14px;font-weight:600;font-size:16px}
 .gbtn svg{width:20px;height:20px}
@@ -1451,6 +1449,7 @@ function applyLayout(){
     b.style.order = i;
     b.style.gridColumn = "span " + (s.w === 2 ? 6 : s.w === 3 ? 2 : 3);
     b.style.gridRow = "span " + s.h;
+    b.setAttribute("data-w", s.w);
   });
 }
 function saveLayout(){ sset("bh:layout", layout); touchPrefs(); }
