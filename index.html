@@ -262,6 +262,9 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
   .tile .tv{white-space:normal;font-size:14.5px;line-height:1.2}
 }
 .acin{display:block;width:100%;margin-top:10px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:13px 14px;font:inherit;font-size:16px}
+.gbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-top:14px;background:#fff;color:#1f1f1f;border:1px solid #dadce0;border-radius:12px;padding:13px 14px;font-weight:600;font-size:16px}
+.gbtn svg{width:20px;height:20px}
+.acor{margin:14px 0 0;text-align:center;font-size:13.5px;color:var(--muted)}
 .acmsg{min-height:20px;margin:10px 0 0;font-size:14.5px;color:var(--lamp-ink)}
 .sync.tap{cursor:pointer;color:var(--lamp-ink);border-color:var(--lamp)}
 .w{-webkit-tap-highlight-color:transparent;border-radius:3px;cursor:pointer}
@@ -396,6 +399,8 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
     <div class="sheet-head"><h2 id="acTitle">Bible Hour account</h2><button class="x" data-close>Close</button></div>
     <div class="sheet-body">
       <p class="foot" style="margin:0">A free account saves your reading time, plans and marks online, so they follow you to any phone or computer.</p>
+      <button class="gbtn" id="acGoogle"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2.1-1.9 3.3-4.700 3.300-8z"/><path fill="#34A853" d="M12 23c3 0 5.500-1 7.300-2.700l-3.500-2.700c-1 .7-2.300 1.100-3.800 1.100-2.900 0-5.300-1.900-6.200-4.600H2.200v2.800A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.800 14.100a6.600 6.600 0 0 1 0-4.200V7.100H2.200a11 11 0 0 0 0 9.800l3.600-2.800z"/><path fill="#EA4335" d="M12 5.400c1.600 0 3.100.6 4.200 1.600l3.100-3.100A11 11 0 0 0 2.200 7.100l3.600 2.800c.9-2.600 3.300-4.500 6.200-4.500z"/></svg>Continue with Google</button>
+      <p class="acor">or use your email</p>
       <input class="acin" id="acEmail" type="email" autocomplete="email" inputmode="email" placeholder="Email" aria-label="Email">
       <input class="acin" id="acPass" type="password" autocomplete="current-password" placeholder="Password (6 or more characters)" aria-label="Password">
       <div class="mkrow"><button class="go" id="acIn">Sign in</button><button id="acUp">Create account</button></div>
@@ -1755,17 +1760,40 @@ function sbAuth(kind, email, pass){
   return sbReq("POST", path, {email: email, password: pass}).then(function(j){
     if (!j || !j.access_token) return "confirm";
     sbKeep(j);
+    return sbEnter();
+  });
+}
+function sbEnter(){
     var lastU = sget("bh:sb_last", null);
     sset("bh:sb_last", sb.uid);
     if (lastU && lastU !== sb.uid){
       /* a different person signed in on this device: do not mix the last person's progress into theirs */
       SB_WIPE.forEach(function(k){ try { localStorage.removeItem("bh:" + k); } catch(e){} });
       location.reload();
-      return "reload";
+      return Promise.resolve("reload");
     }
     return sbStart().then(function(){ return "ok"; });
-  });
 }
+/* coming back from Google: the address carries the session after the # sign */
+function sbFromHash(){
+  var h = (location.hash || "").replace(/^#/, "");
+  if (h.indexOf("access_token=") < 0 && h.indexOf("error") !== 0 && h.indexOf("error_description=") < 0) return null;
+  var q = {}; h.split("&").forEach(function(kv){ var i = kv.indexOf("="); if (i > 0) q[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1).replace(/\+/g, " ")); });
+  try { history.replaceState(null, "", location.pathname + location.search); } catch(e){ location.hash = ""; }
+  if (!q.access_token){ toast(q.error_description || "Google sign-in did not finish. Please try again."); return null; }
+  return sbReq("GET", "/auth/v1/user", null, q.access_token).then(function(u){
+    sbKeep({access_token: q.access_token, refresh_token: q.refresh_token, expires_in: +q.expires_in || 3600, user: {id: u.id, email: u.email}});
+    return sbEnter();
+  }).then(function(res){
+    renderAcct();
+    if (res === "ok") toast(cloud.ready ? "Signed in. Your progress is saved online." : "Signed in, but the online save could not be reached.");
+  }, function(){ toast("Google sign-in did not finish. Please try again."); });
+}
+$("acGoogle").addEventListener("click", function(){
+  if (!/^https?:$/.test(location.protocol)){ acMsg("Google sign-in works on the public web page only."); return; }
+  acMsg("Opening Google\u2026");
+  location.href = SB.url + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(location.origin + location.pathname);
+});
 function sbSignOut(){
   var t = sb && sb.at;
   cloudFlushNow();
@@ -1840,7 +1868,7 @@ function initCloud(){
   function done(){ clearTimeout(timer); cloud.loading = false; setSync(); }
   if (!window.claude || typeof window.claude.use !== "function"){
     supaMode = true; done(); renderAcct();
-    if (sb) sbStart();
+    if (!sbFromHash() && sb) sbStart();
     return;
   }
   Promise.all([window.claude.use("db"), window.claude.use("user")]).then(function(r){
