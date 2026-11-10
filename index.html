@@ -368,6 +368,18 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
 .mkrow .go{background:var(--lamp);color:var(--lamp-on);border-color:var(--lamp)}
 .prev{margin:14px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:12px}
 .pick{max-width:44vw}
+.still{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(112px + env(safe-area-inset-bottom,0px));z-index:7;background:var(--lamp);color:var(--lamp-on);padding:12px 18px;border-radius:12px;font-weight:700;font-size:15.5px;line-height:1.3;width:max-content;max-width:calc(100% - 36px);text-align:center;box-shadow:0 4px 18px rgba(0,0,0,.45)}
+.ppc{text-align:center;margin:6px 0 2px}
+.ppc .tdbig{display:block;font-size:64px}
+.ppc .lab{display:block}
+.ppst{text-align:center;margin:6px 0 0;font-weight:600;font-size:15px;color:var(--muted)}
+.ppst.on{color:var(--lamp-ink)}
+.ppask{margin:14px 0 0;padding:12px 14px;border:2px solid var(--lamp);border-radius:14px}
+.ppask b{display:block;font-size:17px}
+.ppask span{display:block;margin-top:4px;font-size:14.5px;color:var(--muted)}
+.ppask .mkrow button{flex:1}
+#ppSheet .cta{text-align:center}
+#ppSheet .ghost{text-align:center}
 @media (prefers-reduced-motion:reduce){.wick,.toast{transition:none}}
 </style>
 </head>
@@ -482,6 +494,21 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
 </div>
 
 <div class="toast" id="toast" role="status"></div>
+<div class="still" id="still" role="alert" hidden></div>
+
+<dialog class="sheet" id="ppSheet" aria-labelledby="ppTitle">
+  <div class="sheet-in">
+    <div class="sheet-head"><h2 id="ppTitle">Paper Bible</h2><button class="x" data-close>Close</button></div>
+    <div class="sheet-body">
+      <p class="foot" style="margin:0 0 8px;text-align:center">Read your own Bible. This time counts toward today.</p>
+      <div class="ppc"><span class="lab">This reading</span><span class="tdbig" id="ppClock">0:00</span><span class="lab" id="ppToday"></span></div>
+      <p class="ppst" id="ppState"></p>
+      <div class="ppask" id="ppAsk" hidden><b>Still reading?</b><span id="ppAskTxt"></span><div class="mkrow"><button class="go" id="ppYes"></button><button id="ppNo">No</button></div></div>
+      <button class="cta" id="ppToggle"><b id="ppToggleTxt">Start</b></button>
+      <button class="ghost" id="ppDone">Finish</button>
+    </div>
+  </div>
+</dialog>
 
 <dialog class="sheet" id="acSheet" aria-labelledby="acTitle">
   <div class="sheet-in">
@@ -516,6 +543,7 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
     <div class="sheet-body"><div class="vers">
       <button class="ver" id="bbVer"><div><b>Bible version</b><span id="bbVerVal"></span></div></button>
       <button class="ver" id="bbBook"><div><b>Book and chapter</b><span id="bbBookVal"></span></div></button>
+      <button class="ver" id="bbPaper"><div><b>Paper Bible timer</b><span>Time your reading in your own Bible</span></div></button>
     </div></div>
   </div>
 </dialog>
@@ -529,6 +557,7 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
       <div class="wk" id="tdWeek"></div>
       <p class="line" id="tdStreak"></p>
       <button class="cta" id="tdGo"><b id="tdGoTitle"></b><span id="tdGoSub"></span></button>
+      <button class="ghost" id="tdPaper">Paper Bible timer</button>
     </div>
   </div>
 </dialog>
@@ -640,7 +669,7 @@ var VERSIONS = [
   {id:"gnv", short:"GNV", name:"Geneva Bible, original spelling", note:"1599, English, as first printed", lang:"en"},
   {id:"lsg", short:"LSG", name:"Louis Segond", note:"1910, Fran\u00e7ais", lang:"fr"}
 ];
-var OT_COUNT = 39, TOTAL_CH = 1189, IDLE_MS = 600000;
+var OT_COUNT = 39, TOTAL_CH = 1189, IDLE_MIN = 60000, IDLE_MAX = 300000, IDLE_GRACE = 30000, WORD_MS = 2000, PAPER_CHECK = 1800000, PAPER_MAXADD = 10800000;
 
 /* ---------- storage (falls back to memory if blocked) ---------- */
 var mem = {};
@@ -992,7 +1021,7 @@ function route(){
   if (next === "plans"){ renderPlans(); if (changed) window.scrollTo(0, 0); }
   if (next === "read"){
     sset("bh:started", true);
-    lastAct = Date.now(); idle = false; last = Date.now();
+    lastAct = Date.now(); idle = false; last = Date.now(); idleMs = IDLE_MIN; idleFor = 0;
     var y = pos.y || 0;
     renderChapter(y > 0 ? "restore" : "top");
     pos.y = y; 
@@ -1122,10 +1151,102 @@ function artHint(){
 
 /* ---------- timer: runs only while the reader is open ---------- */
 var last = Date.now(), lastAct = Date.now(), idle = false, tickN = 0;
+var idleMs = IDLE_MIN, idleFor = 0;
 function act(){
   lastAct = Date.now();
+  if (!$("still").hidden) $("still").hidden = true;
   if (idle){ idle = false; if (screen === "read") toast("Counting again."); }
+  if (paper.on && paper.run && !paper.ask && lastAct - paper.last < 5000) paper.conf = lastAct;
 }
+/* time allowed without a touch: 2 seconds for each word on the screen, 1 to 5 minutes */
+function calcIdle(){
+  var vs = $("text").querySelectorAll(".v"), vh = window.innerHeight, n = 0, i, r, vis;
+  for (i = 0; i < vs.length; i++){
+    r = vs[i].getBoundingClientRect();
+    if (r.bottom <= 0 || r.height <= 0) continue;
+    if (r.top >= vh) break;
+    vis = (Math.min(r.bottom, vh) - Math.max(r.top, 0)) / r.height;
+    n += vs[i].textContent.split(/\s+/).length * Math.max(0, Math.min(1, vis));
+  }
+  return Math.max(IDLE_MIN, Math.min(IDLE_MAX, n * WORD_MS));
+}
+function addTime(sec){
+  var k = todayKey(), before = days[k] || 0;
+  days[k] = before + sec;
+  mine[k] = (mine[k] || 0) + sec;
+  if (before < goalSec() && days[k] >= goalSec() && notified !== k){
+    notified = k; sset("bh:done", k);
+    toast("Daily goal reached. Well done.");
+    try { if (navigator.vibrate) navigator.vibrate([120, 80, 120]); } catch(e){}
+  }
+}
+/* paper Bible timer: counts by the clock, so it keeps going while the phone sleeps */
+var paper = sget("bh:paper", null);
+if (!paper || !paper.on) paper = {on: false};
+function paperPending(now){ return Math.max(0, Math.min(now - (paper.conf + PAPER_CHECK), PAPER_MAXADD)); }
+function renderPaper(){
+  var now = Date.now();
+  $("ppClock").textContent = fmt(paper.sess || 0);
+  $("ppToday").textContent = "Today " + fmtDur(todaySec()) + " of " + settings.goal + " min";
+  $("ppAsk").hidden = !paper.ask;
+  if (paper.ask){
+    var m = Math.max(1, Math.round(paperPending(now) / 60000));
+    $("ppAskTxt").textContent = "The timer stopped counting after 30 minutes without a touch.";
+    $("ppYes").textContent = "Yes, add " + m + " min";
+  }
+  $("ppToggleTxt").textContent = paper.run ? "Pause" : ((paper.sess || 0) > 0 ? "Continue" : "Start");
+  $("ppToggle").style.display = paper.ask ? "none" : "";
+  $("ppState").textContent = paper.ask ? "Waiting for your answer" : (paper.run ? "Counting" : "Not counting");
+  $("ppState").className = "ppst" + (paper.run && !paper.ask ? " on" : "");
+}
+function paperTick(now){
+  if (!paper.on) return;
+  if (paper.run){
+    var upto = Math.min(now, paper.conf + PAPER_CHECK);
+    if (upto > paper.last){ var s = (upto - paper.last) / 1000; addTime(s); paper.sess += s; }
+    paper.last = now;
+    if (now > paper.conf + PAPER_CHECK && !paper.ask){
+      paper.ask = true;
+      try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch(e){}
+    }
+  }
+  renderPaper();
+}
+function savePaper(){ sset("bh:paper", paper); }
+function openPaper(){
+  var now = Date.now();
+  if (!paper.on) paper = {on: true, run: false, sess: 0, last: now, conf: now, ask: false};
+  savePaper(); renderPaper();
+  if (!$("ppSheet").open) openSheet($("ppSheet"));
+}
+function finishPaper(){
+  if (!paper.on) return;
+  paperTick(Date.now());
+  var s = paper.sess || 0;
+  paper = {on: false}; savePaper(); saveDays(); cloudFlushNow();
+  if (s >= 1) toast("Added " + (s < 60 ? Math.floor(s) + " sec" : fmtDur(s)) + " to today.");
+  if (screen === "home") renderHome();
+}
+$("ppToggle").addEventListener("click", function(){
+  var now = Date.now();
+  paperTick(now);
+  paper.run = !paper.run; paper.last = now; paper.conf = now;
+  savePaper(); saveDays(); renderPaper();
+});
+$("ppYes").addEventListener("click", function(){
+  var now = Date.now(), s = paperPending(now) / 1000;
+  addTime(s); paper.sess += s; paper.ask = false; paper.conf = now; paper.last = now;
+  savePaper(); saveDays(); renderPaper();
+});
+$("ppNo").addEventListener("click", function(){
+  var now = Date.now();
+  paper.ask = false; paper.conf = now; paper.last = now;
+  savePaper(); renderPaper();
+});
+$("ppDone").addEventListener("click", function(){ closeSheet($("ppSheet")); });
+$("ppSheet").addEventListener("close", finishPaper);
+$("bbPaper").addEventListener("click", function(){ closeSheet($("bbSheet")); openPaper(); });
+$("tdPaper").addEventListener("click", function(){ closeSheet($("tdSheet")); openPaper(); });
 ["touchstart","pointerdown","keydown","scroll","wheel","mousemove"].forEach(function(ev){
   document.addEventListener(ev, act, {passive:true, capture:true});
 });
@@ -1148,28 +1269,30 @@ function renderDock(counting){
 function tick(){
   var now = Date.now(), dt = Math.min(now - last, 3000);
   last = now;
-  if (now - lastAct > IDLE_MS) idle = true;
-  var counting = screen === "read" && !document.hidden && !idle;
-  if (counting){
-    var k = todayKey(), before = days[k] || 0;
-    days[k] = before + dt / 1000;
-    mine[k] = (mine[k] || 0) + dt / 1000;
-    if (before < goalSec() && days[k] >= goalSec() && notified !== k){
-      notified = k; sset("bh:done", k);
-      toast("Daily goal reached. Well done.");
-      try { if (navigator.vibrate) navigator.vibrate([120, 80, 120]); } catch(e){}
-    }
+  var reading = screen === "read" && !paper.on, since = now - lastAct, st = $("still");
+  if (reading){
+    if (idleFor !== lastAct || since < 5000){ idleFor = lastAct; idleMs = calcIdle(); }
+    if (since > idleMs + IDLE_GRACE) idle = true;
+    var ask = since > idleMs && !document.hidden;
+    if (ask && st.hidden){ try { if (navigator.vibrate) navigator.vibrate(150); } catch(e){} }
+    if (ask) st.textContent = idle ? "Paused. Touch the screen to count again." : "Still reading? Touch the screen to keep counting.";
+    st.hidden = !ask;
+  } else if (!st.hidden) st.hidden = true;
+  var counting = reading && !document.hidden && !idle;
+  if (counting) addTime(dt / 1000);
+  paperTick(now);
+  if (counting || (paper.on && paper.run)){
     tickN++;
-    if (tickN % 5 === 0) saveDays();
+    if (tickN % 5 === 0){ saveDays(); if (paper.on) savePaper(); }
   }
   if (screen === "read") renderDock(counting);
 }
 setInterval(tick, 1000);
 document.addEventListener("visibilitychange", function(){
-  if (document.hidden){ if (screen === "read"){ pos.y = window.scrollY || pos.y; savePos(); } saveDays(); cloudFlushNow(); }
-  else { last = Date.now(); }
+  if (document.hidden){ if (screen === "read"){ pos.y = window.scrollY || pos.y; savePos(); } saveDays(); if (paper.on) savePaper(); cloudFlushNow(); }
+  else { last = Date.now(); tick(); }
 });
-window.addEventListener("pagehide", function(){ if (screen === "read"){ pos.y = window.scrollY || pos.y; savePos(); } saveDays(); cloudFlushNow(); });
+window.addEventListener("pagehide", function(){ if (screen === "read"){ pos.y = window.scrollY || pos.y; savePos(); } saveDays(); if (paper.on) savePaper(); cloudFlushNow(); });
 
 /* ---------- sheets ---------- */
 function openSheet(d){ if (d.showModal) d.showModal(); else d.setAttribute("open", ""); }
@@ -2343,6 +2466,7 @@ applyLook();
 applyLayout();
 route();
 initCloud();
+if (paper.on){ if (screen !== "home") go("home"); openPaper(); }
 })();
 </script>
 </body>
