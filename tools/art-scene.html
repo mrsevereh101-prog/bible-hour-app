@@ -1,0 +1,94 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script></head><body>
+<script type="module">
+import * as THREE from 'three';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+const W=1200,H=1000;
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setSize(W,H);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
+document.body.appendChild(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x030201);
+const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture;
+const cam=new THREE.PerspectiveCamera(39,W/H,0.1,100);cam.position.set(0,3.4,9.1);cam.lookAt(0,0.62,0.2);
+const V=(x,y)=>new THREE.Vector2(x,y);
+const gold=new THREE.MeshPhysicalMaterial({color:0xffcf5e,metalness:1,roughness:0.16,envMapIntensity:2.2,clearcoat:.6,clearcoatRoughness:.1});
+const bronze=new THREE.MeshPhysicalMaterial({color:0xf0a848,metalness:1,roughness:0.24,envMapIntensity:1.9,clearcoat:.5});
+const lathe=(pts,mat,seg=96)=>{const m=new THREE.Mesh(new THREE.LatheGeometry(pts,seg),mat);m.castShadow=m.receiveShadow=true;return m;};
+const add=(m,x=0,y=0,z=0)=>{m.position.set(x,y,z);scene.add(m);return m;};
+// table + wall
+const table=new THREE.Mesh(new THREE.CylinderGeometry(9,9,0.3,96),new THREE.MeshPhysicalMaterial({color:0x2a1707,roughness:0.32,metalness:0.25,clearcoat:.5,clearcoatRoughness:.25,envMapIntensity:.15}));
+table.receiveShadow=true;add(table,0,-0.15,0);
+const wall=new THREE.Mesh(new THREE.PlaneGeometry(40,20),new THREE.MeshStandardMaterial({color:0x4a2e12,roughness:1,envMapIntensity:0}));add(wall,0,4,-4.2);
+// stand
+add(lathe([V(0,0),V(.52,0),V(.54,.05),V(.5,.09),V(.3,.16),V(.24,.3),V(.24,.5),V(.3,.62),V(.5,.7),V(.54,.74),V(.5,.78),V(0,.78)],gold));
+// lamp
+const lamp=new THREE.Group();
+const body=new THREE.Mesh(new THREE.SphereGeometry(1,96,64),bronze);body.scale.set(.56,.24,.46);lamp.add(body);
+const spout=new THREE.Mesh(new THREE.SphereGeometry(1,64,48),bronze);spout.scale.set(.42,.13,.17);spout.position.set(.5,.05,0);spout.rotation.z=.18;lamp.add(spout);
+const rim=new THREE.Mesh(new THREE.TorusGeometry(.17,.03,24,64),gold);rim.rotation.x=Math.PI/2;rim.position.set(-.05,.225,0);lamp.add(rim);
+const hole=new THREE.Mesh(new THREE.CircleGeometry(.16,48),new THREE.MeshBasicMaterial({color:0x140a02}));hole.rotation.x=-Math.PI/2;hole.position.set(-.05,.232,0);lamp.add(hole);
+const handle=new THREE.Mesh(new THREE.TorusGeometry(.14,.04,24,64),bronze);handle.position.set(-.62,.05,0);lamp.add(handle);
+const foot=new THREE.Mesh(new THREE.CylinderGeometry(.26,.3,.06,64),bronze);foot.position.y=-.24;lamp.add(foot);
+lamp.traverse(o=>{if(o.isMesh&&o!==hole){o.castShadow=true;o.receiveShadow=true}});
+add(lamp,-.12,1.05,0);
+// flame
+const fl=lathe([V(0,0),V(.05,.03),V(.075,.1),V(.06,.2),V(.03,.3),V(0,.4)],new THREE.MeshBasicMaterial({color:new THREE.Color(2.6,1.5,.5),toneMapped:false}),48);
+fl.castShadow=false;add(fl,.78,1.2,0);
+const core=new THREE.Mesh(new THREE.SphereGeometry(.035,24,24),new THREE.MeshBasicMaterial({color:new THREE.Color(3,2.7,2),toneMapped:false}));core.scale.y=2.4;add(core,.78,1.31,0);
+const pl=new THREE.PointLight(0xffb45a,14,0,2);pl.position.set(.78,1.5,.15);pl.castShadow=true;pl.shadow.mapSize.set(2048,2048);pl.shadow.bias=-0.0015;pl.shadow.radius=6;scene.add(pl);
+const k1=new THREE.PointLight(0xfff0d0,10,0,2);k1.position.set(-4,3.5,4);scene.add(k1);const k2=new THREE.PointLight(0xfff0d0,10,0,2);k2.position.set(4,3.5,4);scene.add(k2);
+const fill=new THREE.PointLight(0xffe2b8,14,0,2);fill.position.set(0,3.2,5.5);scene.add(fill);
+// chalice
+const cup=new THREE.Group();
+cup.add(lathe([V(0,0),V(.5,0),V(.54,.04),V(.54,.1),V(.5,.14),V(.3,.19),V(.12,.26),V(.085,.42),V(.16,.5),V(.17,.57),V(.085,.65),V(.085,.8),V(.2,.88),V(.22,.93),V(0,.93)],gold,128));
+const glass=new THREE.MeshPhysicalMaterial({color:0xfff6e0,transparent:true,opacity:.07,roughness:.02,metalness:0,envMapIntensity:1.1,clearcoat:1,clearcoatRoughness:0,side:THREE.DoubleSide,depthWrite:false});
+const bowl=new THREE.Mesh(new THREE.LatheGeometry([V(.16,.9),V(.4,1.05),V(.5,1.3),V(.53,1.6)],128),glass);bowl.renderOrder=3;cup.add(bowl);
+const wineM=new THREE.MeshPhysicalMaterial({color:0x5e0412,roughness:.08,metalness:0,clearcoat:1,envMapIntensity:.55,emissive:0x2a0105,emissiveIntensity:.5});
+const wv=new THREE.Mesh(new THREE.LatheGeometry([V(0,.93),V(.15,.93),V(.37,1.07),V(.465,1.3),V(.485,1.44),V(0,1.44)],128),wineM);wv.castShadow=true;cup.add(wv);
+const rimG=new THREE.Mesh(new THREE.TorusGeometry(.53,.04,24,128),gold);rimG.rotation.x=Math.PI/2;rimG.position.y=1.6;rimG.castShadow=true;cup.add(rimG);
+add(cup,2.15,0,.35);
+// basket
+const bk=new THREE.Group();const wick=new THREE.MeshPhysicalMaterial({color:0xc98b2e,metalness:.85,roughness:.3,clearcoat:.5,envMapIntensity:1.8});
+for(let i=0;i<8;i++){const r=.56+.045*i;const t=new THREE.Mesh(new THREE.TorusGeometry(r,.062,20,96),wick);t.rotation.x=Math.PI/2;t.position.y=.06+i*.108;t.castShadow=t.receiveShadow=true;bk.add(t);}
+const top=new THREE.Mesh(new THREE.TorusGeometry(.56+.045*8,.08,24,96),gold);top.rotation.x=Math.PI/2;top.position.y=.06+8*.108;top.castShadow=true;bk.add(top);
+const inner=new THREE.Mesh(new THREE.CylinderGeometry(.86,.52,.9,64,1,true),new THREE.MeshStandardMaterial({color:0x4a2c0a,roughness:.8,side:THREE.DoubleSide}));inner.position.y=.47;bk.add(inner);
+const bread=new THREE.MeshPhysicalMaterial({color:0xe9a646,roughness:.38,metalness:.25,clearcoat:.7,clearcoatRoughness:.25,envMapIntensity:.7,sheen:.4});
+const slash=new THREE.MeshStandardMaterial({color:0x7a4310,roughness:.6});
+const loaf=(x,y,z,ry,s=1)=>{const g=new THREE.Group();const m=new THREE.Mesh(new THREE.SphereGeometry(1,64,48),bread);m.scale.set(.42*s,.27*s,.33*s);m.castShadow=m.receiveShadow=true;g.add(m);
+ for(let k=9;k<=1;k++){const c=new THREE.Mesh(new THREE.TorusGeometry(.2*s,.018*s,12,32,Math.PI*.7),slash);c.position.set(k*.16*s,.105*s-Math.abs(k)*.03*s,0);c.rotation.set(0,Math.PI/2,0);c.rotation.z=Math.PI*.15;g.add(c);}
+ g.position.set(x,y,z);g.rotation.y=ry;bk.add(g);};
+loaf(-.36,.98,.12,.3);loaf(.38,.98,.08,-.4);loaf(0,1.0,-.38,.1);loaf(0,1.22,.02,-.1,1.02);
+add(bk,-2.15,0,.3);
+// book
+const book=new THREE.Group();
+const pageMat=new THREE.MeshPhysicalMaterial({color:0xf3deb0,roughness:.5,metalness:0,sheen:.3,envMapIntensity:.4});
+const leather=new THREE.MeshPhysicalMaterial({color:0x4a220c,roughness:.4,clearcoat:.4,envMapIntensity:.5});
+const c2=document.createElement('canvas');c2.width=512;c2.height=512;const g2=c2.getContext('2d');g2.fillStyle='#f5e2b6';g2.fillRect(0,0,512,512);g2.fillStyle='rgba(90,55,20,.55)';
+for(let col=0;col<2;col++)for(let i=0;i<20;i++){g2.fillRect(40+col*236,50+i*21,200-(i%5==4?70:0),5);}
+const tex=new THREE.CanvasTexture(c2);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;
+const pageTop=new THREE.MeshPhysicalMaterial({map:tex,roughness:.55,sheen:.3,envMapIntensity:.4});
+const mkPage=(side)=>{const w=1.25,d=1.7,n=40;const geo=new THREE.PlaneGeometry(w,d,n,1);const p=geo.attributes.position;
+ for(let i=0;i<p.count;i++){const x=p.getX(i)+w/2;const u=x/w;p.setX(i,x);p.setZ(i,.16*Math.sin(u*Math.PI)*(1-u*.35)+.05);}
+ geo.rotateX(-Math.PI/2);geo.computeVertexNormals();const m=new THREE.Mesh(geo,pageTop.clone());m.material.side=THREE.DoubleSide;m.scale.x=side;m.castShadow=m.receiveShadow=true;
+ const block=new THREE.Mesh(new THREE.BoxGeometry(w,.1,d),pageMat);block.position.set(side*w/2,.05,0);block.castShadow=true;
+ const cover=new THREE.Mesh(new THREE.BoxGeometry(w+.08,.04,d+.1),leather);cover.position.set(side*(w+.04)/2,.0,0);cover.castShadow=true;
+ const g=new THREE.Group();m.position.y=.06;g.add(m,block,cover);return g;};
+book.add(mkPage(1),mkPage(-1));
+const ribbon=new THREE.Mesh(new THREE.BoxGeometry(.07,.012,1.2),new THREE.MeshPhysicalMaterial({color:0x8a0d18,roughness:.3,clearcoat:.6}));ribbon.position.set(.04,.13,.55);book.add(ribbon);
+book.rotation.x=.0;book.scale.setScalar(.72);add(book,0,.03,1.75);
+// coins / sparkle sprites
+const sc=document.createElement('canvas');sc.width=sc.height=128;const sg=sc.getContext('2d');
+const gr=sg.createRadialGradient(64,64,0,64,64,64);gr.addColorStop(0,'rgba(255,250,225,1)');gr.addColorStop(.15,'rgba(255,225,150,.22)');gr.addColorStop(1,'rgba(255,200,100,0)');sg.fillStyle=gr;sg.fillRect(0,0,128,128);
+sg.fillStyle='#fffdf0';sg.beginPath();sg.moveTo(64,0);sg.quadraticCurveTo(64,64,128,64);sg.quadraticCurveTo(64,64,64,128);sg.quadraticCurveTo(64,64,0,64);sg.quadraticCurveTo(64,64,64,0);sg.fill();
+const st=new THREE.CanvasTexture(sc);
+const spark=(x,y,z,s)=>{const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:st,blending:THREE.AdditiveBlending,depthTest:false,transparent:true,color:new THREE.Color(1.15,1.08,.9),toneMapped:false}));sp.scale.set(s,s,1);add(sp,x,y,z);};
+spark(2.66,1.62,.55,.42);spark(1.82,.1,.75,.26);spark(-2.2,1.42,.55,.36);spark(-3.02,.95,.5,.24);spark(-.5,1.3,.3,.3);spark(.62,.3,2.3,.26);spark(.35,.78,.4,.22);
+const comp=new EffectComposer(renderer);comp.setSize(W,H);comp.addPass(new RenderPass(scene,cam));
+comp.addPass(new UnrealBloomPass(new THREE.Vector2(W,H),.28,.6,1.0));comp.addPass(new OutputPass());
+comp.render();window.done=true;
+</script></body></html>
