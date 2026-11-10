@@ -272,7 +272,22 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
 .artwrap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%}
 .artwrap .artsvg{border-radius:0}
 .hs{position:absolute;border:0;background:transparent;padding:0;border-radius:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.hs:active,.hs.flash{background:radial-gradient(closest-side,rgba(255,225,140,.45),rgba(255,225,140,0));}
+.hs:active{background:radial-gradient(closest-side,rgba(255,225,140,.45),rgba(255,225,140,0));}
+.hs::after{content:"";position:absolute;inset:-14%;border-radius:50%;pointer-events:none;background:radial-gradient(closest-side,var(--g) 0%,transparent 100%);mix-blend-mode:screen;opacity:.2;animation:hsglow 3.8s ease-in-out infinite;animation-delay:var(--gd,0s);transition:opacity .35s}
+@keyframes hsglow{0%,100%{opacity:.16}50%{opacity:.5}}
+.hs.flash::after{animation:none;opacity:.95}
+#hsBible{--g:rgba(255,236,170,.75);--gd:0s}
+#hsBread{--g:rgba(255,120,20,.95);--gd:-.5s}
+#hsCup{--g:rgba(255,60,90,.85);--gd:-1s}
+#hsLamp{--g:rgba(255,215,60,.85);--gd:-1.5s}
+#hsGlass{--g:rgba(60,200,255,.85);--gd:-2s}
+#hsInk{--g:rgba(170,110,255,.9);--gd:-2.5s}
+#hsPaper{--g:rgba(90,230,150,.8);--gd:-3s}
+:root[data-theme="day"] .hs::after{mix-blend-mode:normal}
+:root[data-theme="day"] .hs.flash::after{opacity:.75}
+@keyframes hsglowday{0%,100%{opacity:.12}50%{opacity:.4}}
+:root[data-theme="day"] .hs:not(.flash)::after{animation-name:hsglowday}
+@media (prefers-reduced-motion:reduce){.hs::after{animation:none;opacity:.3}}
 .pg{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .pg .lab{display:block;font-size:13px}
 .pgl{min-width:0}
@@ -1140,12 +1155,17 @@ function fitArt(){
   if (cw / ch > A){ w.style.width = cw + "px"; w.style.height = (cw / A) + "px"; }
   else { w.style.height = ch + "px"; w.style.width = (ch * A) + "px"; }
 }
+var artShown = false;
 function artHint(){
+  /* every time the app opens, each item lights up in its own colour, one after the other */
+  if (!artShown){
+    artShown = true;
+    ["hsLamp", "hsBible", "hsBread", "hsCup", "hsInk", "hsGlass", "hsPaper"].forEach(function(id, i){
+      setTimeout(function(){ var e = $(id); e.classList.add("flash"); setTimeout(function(){ e.classList.remove("flash"); }, 900); }, 700 + i * 350);
+    });
+  }
   if (sget("bh:arthint", false)) return;
   sset("bh:arthint", true);
-  ["hsBible", "hsBread", "hsCup", "hsLamp", "hsGlass", "hsInk", "hsPaper"].forEach(function(id, i){
-    setTimeout(function(){ var e = $(id); e.classList.add("flash"); setTimeout(function(){ e.classList.remove("flash"); }, 900); }, 700 + i * 350);
-  });
   setTimeout(function(){ if (screen === "home") toast("Tip: touch the Bible, the bread, the cup, the lamp, the hourglass, or the ink and paper."); }, 800);
 }
 
