@@ -511,6 +511,19 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
 <div class="toast" id="toast" role="status"></div>
 <div class="still" id="still" role="alert" hidden></div>
 
+<dialog class="sheet" id="bjSheet" aria-labelledby="bjTitle">
+  <div class="sheet-in">
+    <div class="sheet-head"><h2 id="bjTitle">Join the readers board?</h2><button class="x" data-close>Close</button></div>
+    <div class="sheet-body">
+      <p class="foot" style="margin:0">The readers board shows the top readers, so we can encourage each other. It is your choice. If you join, other readers will see the name you pick and your reading time. Nothing else is shown.</p>
+      <input class="acin" id="bjName" type="text" maxlength="24" placeholder="First name or nickname" aria-label="Name to show on the board">
+      <button class="cta" id="bjYes" style="text-align:center"><b>Join the board</b></button>
+      <button class="ghost" id="bjNo" style="text-align:center">Not now</button>
+      <p class="foot">You can join or leave any time from the Readers board.</p>
+    </div>
+  </div>
+</dialog>
+
 <dialog class="sheet" id="ppSheet" aria-labelledby="ppTitle">
   <div class="sheet-in">
     <div class="sheet-head"><h2 id="ppTitle">Paper Bible</h2><button class="x" data-close>Close</button></div>
@@ -2237,7 +2250,7 @@ function sbAuth(kind, email, pass){
 }
 function sbEnter(){
     var lastU = sget("bh:sb_last", null);
-    sset("bh:sb_last", sb.uid);
+    sset("bh:sb_last", sb.uid); sset("bh:baskp", sb.uid);
     if (lastU && lastU !== sb.uid){
       /* a different person signed in on this device: do not mix the last person's progress into theirs */
       SB_WIPE.forEach(function(k){ try { localStorage.removeItem("bh:" + k); } catch(e){} });
@@ -2260,6 +2273,7 @@ function sbFromHash(){
     renderAcct();
     if (q.type === "recovery" && res !== "reload"){ $("pwMsg").textContent = ""; openSheet($("pwSheet")); return; }
     if (res === "ok") toast(cloud.ready ? "Signed in. Your progress is saved online." : "Signed in, but the online save could not be reached.");
+    boardOfferLater();
   }, function(){ toast("Google sign-in did not finish. Please try again."); });
 }
 $("acForgot").addEventListener("click", function(){
@@ -2386,6 +2400,31 @@ function renderBoard(body){
     body.appendChild(row);
   });
 }
+/* after signing in, ask once if the person wants to join. Nobody is added without saying yes. */
+function boardOfferLater(){ if (sb) sset("bh:baskp", sb.uid); setTimeout(boardOffer, 1200); }
+function boardOffer(){
+  if (!supaMode || !sb || sget("bh:baskp", null) !== sb.uid) return;
+  var uid = sb.uid;
+  boardMine().then(function(){
+    if (!sb || sb.uid !== uid) return;
+    if (document.querySelector("dialog[open]")){ setTimeout(boardOffer, 4000); return; }
+    sset("bh:baskp", null);
+    if (board.name) return;
+    $("bjName").value = ""; $("bjYes").disabled = false;
+    openSheet($("bjSheet"));
+  }, function(){});
+}
+$("bjNo").addEventListener("click", function(){ closeSheet($("bjSheet")); toast("No problem. You can join any time from the Readers board."); });
+$("bjYes").addEventListener("click", function(){
+  var nm = $("bjName").value.replace(/\s+/g, " ").trim().slice(0, 24);
+  if (!nm){ toast("Type a name first."); return; }
+  board.name = nm; sset("bh:bname", nm); $("bjYes").disabled = true;
+  boardPush(true).then(function(){
+    board.loadedFor = null; boardTop.at = 0; closeSheet($("bjSheet"));
+    toast("You are on the readers board as " + nm + ".");
+    if (screen === "home"){ boardPreview(); } else if (screen === "history") renderHistory();
+  });
+});
 var boardTop = {rows: null, at: 0};
 function boardPreview(){
   if (!supaMode || !sb || Date.now() - boardTop.at < 120000) return;
@@ -2433,6 +2472,7 @@ function acGo(kind){
       $("acPass").value = ""; acMsg("");
       closeSheet($("acSheet")); renderAcct();
       toast(cloud.ready ? "Signed in. Your progress is saved online." : "Signed in, but the online save could not be reached.");
+      boardOfferLater();
     }
   }, function(e){
     var m = (e && e.message) || "Something went wrong.";
@@ -2497,6 +2537,7 @@ applyLayout();
 route();
 initCloud();
 if (paper.on){ if (screen !== "home") go("home"); openPaper(); }
+setTimeout(boardOffer, 2500);
 })();
 </script>
 </body>
