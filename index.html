@@ -263,6 +263,16 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
 .gbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-top:14px;background:#fff;color:#1f1f1f;border:1px solid #dadce0;border-radius:12px;padding:13px 14px;font-weight:600;font-size:16px}
 .gbtn svg{width:20px;height:20px}
 .acor{margin:14px 0 0;text-align:center;font-size:13.5px;color:var(--muted)}
+.bdnote{margin:14px 0 4px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.bdnote b{display:block;font-size:16px}
+.bdnote span{display:block;margin-top:4px;font-size:14px;color:var(--muted)}
+.bdnote i{display:block;margin-top:8px;font-size:13.5px;color:var(--lamp-ink)}
+.bdrow{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--line)}
+.bdrow .n{width:30px;flex:none;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
+.bdrow .nm{flex:1;min-width:0;font-weight:600;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bdrow .tm{flex:none;font-variant-numeric:tabular-nums;font-size:15px;color:var(--muted)}
+.bdrow.me{background:var(--chip);border-radius:10px;border-bottom-color:transparent}
+.bdrow.me .nm{color:var(--lamp-ink)}
 .acmsg{min-height:20px;margin:10px 0 0;font-size:14.5px;color:var(--lamp-ink)}
 .sync.tap{cursor:pointer;color:var(--lamp-ink);border-color:var(--lamp)}
 .w{-webkit-tap-highlight-color:transparent;border-radius:3px;cursor:pointer}
@@ -1046,7 +1056,7 @@ function renderHome(){
 
   $("tVerVal").textContent = verInfo().short;
   $("tBookVal").textContent = bookAbbr(pos.b) + " " + (pos.c + 1);
-  $("tHistVal").textContent = "Wk, Mo, Yr";
+  $("tHistVal").textContent = supaMode ? "Me, Readers" : "Wk, Mo, Yr";
   $("tSetVal").textContent = settings.goal + "m, " + ({black:"Gold", day:"Day", bwb:"Black", bww:"White"}[settings.theme] || "Gold");
 }
 function setText(){ saveSettings(); applyLook(); renderTextControls(); }
@@ -1264,7 +1274,10 @@ function renderYear(body){
 function renderHistory(){
   var tabs = $("tabs");
   tabs.innerHTML = "";
-  [["Week","week"],["Month","month"],["Year","year"]].forEach(function(t){
+  var tabList = [["Week","week"],["Month","month"],["Year","year"]];
+  if (supaMode) tabList.push(["Readers","board"]);
+  else if (hist.tab === "board") hist.tab = "week";
+  tabList.forEach(function(t){
     var b = el("button", null, t[0]);
     b.setAttribute("aria-pressed", String(hist.tab === t[1]));
     b.addEventListener("click", function(){ hist.tab = t[1]; renderHistory(); });
@@ -1274,6 +1287,7 @@ function renderHistory(){
   body.innerHTML = "";
   if (hist.tab === "week") renderWeek(body);
   else if (hist.tab === "month") renderMonth(body);
+  else if (hist.tab === "board") renderBoard(body);
   else renderYear(body);
 }
 
@@ -1577,6 +1591,7 @@ function cloudFlushNow(){
 }
 function flushAll(){
   flushTimer = null;
+  boardPush(false);
   Object.keys(dirty).forEach(flushDoc);
 }
 function flushDoc(name){
@@ -1720,6 +1735,7 @@ function sbKeep(j){
 function sbSignedOut(){
   sb = null; sset("bh:sb", null);
   cloud.ready = false; cloud.error = false; cloud.db = null; cloud.uid = null;
+  board.name = null; board.rows = null; board.loadedFor = null; sset("bh:bname", null);
   clearTimeout(flushTimer); flushTimer = null;
   setSync();
 }
@@ -1763,7 +1779,10 @@ var sbDb = {
 };
 function sbStart(){
   cloud.db = sbDb; cloud.uid = sb.uid; cloud.loading = true; cloud.error = false; setSync();
-  return pullAll().catch(function(){ cloud.ready = false; cloud.error = true; }).then(function(){ cloud.loading = false; setSync(); });
+  return pullAll().catch(function(){ cloud.ready = false; cloud.error = true; }).then(function(){
+    cloud.loading = false; setSync();
+    boardMine().then(function(){ boardPush(true); }, function(){});
+  });
 }
 var SB_WIPE = ["days", "mine", "others", "rs", "read", "plan", "marks", "pos", "done", "started", "layout", "prefs_t"];
 function sbAuth(kind, email, pass){
@@ -1832,6 +1851,98 @@ function sbSignOut(){
     if (t) sbReq("POST", "/auth/v1/logout", null, t).catch(function(){});
     sbSignedOut(); renderAcct(); toast("Signed out. Your progress stays on this device.");
   }, 1200);
+}
+/* ---------- readers board: an encouragement, not a competition ---------- */
+var board = {per: "week", name: sget("bh:bname", null), rows: null, err: null, loadedFor: null, pushedAt: 0};
+function boardStats(){
+  var mon = mondayOf(new Date()), wk = 0, i, k, total = 0, mo = 0, mk = monthOf(todayKey());
+  for (i = 0; i < 7; i++) wk += secOn(addDays(mon, i));
+  for (k in days){ total += days[k] || 0; if (monthOf(k) === mk) mo += days[k] || 0; }
+  return {week_key: dayKey(mon), week_sec: Math.min(604800, Math.round(wk)), month_key: mk, month_sec: Math.min(2678400, Math.round(mo)), total_sec: Math.round(total)};
+}
+function boardReq(method, q, body, extra){
+  return sbToken().then(function(t){ return sbReq(method, "/rest/v1/bh_board" + q, body, t, extra); });
+}
+function boardPush(force){
+  if (!supaMode || !sb || !board.name) return Promise.resolve();
+  if (!force && Date.now() - board.pushedAt < 60000) return Promise.resolve();
+  board.pushedAt = Date.now();
+  var row = boardStats(); row.user_id = sb.uid; row.name = board.name; row.updated_at = new Date().toISOString();
+  return boardReq("POST", "?on_conflict=user_id", row, {Prefer: "resolution=merge-duplicates,return=minimal"}).catch(function(){});
+}
+function boardMine(){
+  if (!sb) return Promise.resolve();
+  return boardReq("GET", "?select=name&user_id=eq." + sb.uid).then(function(r){
+    board.name = (r && r[0]) ? r[0].name : null; sset("bh:bname", board.name);
+  });
+}
+function boardLoad(){
+  var st = boardStats(), col = board.per === "week" ? "week_sec" : board.per === "month" ? "month_sec" : "total_sec";
+  var q = "?select=user_id,name," + col + "&" + col + "=gt.0&order=" + col + ".desc&limit=100";
+  if (board.per === "week") q += "&week_key=eq." + st.week_key;
+  if (board.per === "month") q += "&month_key=eq." + st.month_key;
+  var per = board.per;
+  board.rows = null; board.err = null;
+  return boardMine().then(function(){ return boardPush(true); }).then(function(){ return boardReq("GET", q); }).then(function(rows){
+    if (per !== board.per) return;
+    board.rows = (rows || []).map(function(r){ return {uid: r.user_id, name: r.name, sec: r[col]}; });
+  }, function(e){
+    board.err = (e && (e.status === 404 || /bh_board/.test(e.message || ""))) ? "The readers board is not set up yet." : "Could not load the readers board. Check your connection and try again.";
+  }).then(function(){ if (screen === "history" && hist.tab === "board") renderHistory(); });
+}
+function renderBoard(body){
+  var note = el("div", "bdnote");
+  note.appendChild(el("b", null, "Readers board"));
+  note.appendChild(el("span", null, "This is not a competition. It is here to encourage one another to keep reading."));
+  note.appendChild(el("i", null, "\u201cAnd let us consider one another to provoke unto love and to good works.\u201d Hebrews 10:24"));
+  body.appendChild(note);
+  if (!sb){
+    body.appendChild(el("p", "empty", "Sign in to see the readers board and to add your name."));
+    var si = el("button", "pbtn go", "Sign in");
+    si.addEventListener("click", function(){ acMsg(""); openSheet($("acSheet")); });
+    body.appendChild(si);
+    return;
+  }
+  var sg = el("div", "seg"); sg.style.marginTop = "14px";
+  seg(sg, [["This week","week"],["This month","month"],["All time","all"]], function(v){ return board.per === v; }, function(v){ board.per = v; board.loadedFor = null; renderHistory(); });
+  body.appendChild(sg);
+  var key = board.per + "|" + sb.uid;
+  if (board.loadedFor !== key){ board.loadedFor = key; boardLoad(); }
+  /* my place on the board */
+  var mine = el("div", "bdnote");
+  if (board.name){
+    mine.appendChild(el("b", null, "You are on the board as " + board.name));
+    var rowB = el("div", "mkrow"), ch = el("button", null, "Change name"), lv = el("button", null, "Leave the board");
+    ch.addEventListener("click", function(){ board.name = null; board.editing = true; renderHistory(); });
+    lv.addEventListener("click", function(){
+      boardReq("DELETE", "?user_id=eq." + sb.uid).then(function(){ board.name = null; sset("bh:bname", null); board.loadedFor = null; toast("Your name was removed from the board."); renderHistory(); }, function(){ toast("Could not leave right now. Please try again."); });
+    });
+    rowB.appendChild(ch); rowB.appendChild(lv); mine.appendChild(rowB);
+  } else {
+    mine.appendChild(el("b", null, "Add your name"));
+    mine.appendChild(el("span", null, "Other readers will see this name and your reading time. Use a first name or a nickname."));
+    var inp = el("input", "acin"); inp.type = "text"; inp.maxLength = 24; inp.placeholder = "Name to show"; inp.setAttribute("aria-label", "Name to show on the board");
+    var jb = el("button", "pbtn go", "Join the board");
+    jb.addEventListener("click", function(){
+      var nm = inp.value.replace(/\s+/g, " ").trim().slice(0, 24);
+      if (!nm){ toast("Type a name first."); return; }
+      board.name = nm; sset("bh:bname", nm);
+      jb.disabled = true; jb.textContent = "Joining\u2026";
+      boardPush(true).then(function(){ board.loadedFor = null; renderHistory(); });
+    });
+    mine.appendChild(inp); mine.appendChild(jb);
+  }
+  body.appendChild(mine);
+  if (board.err){ body.appendChild(el("p", "empty", board.err)); return; }
+  if (!board.rows){ body.appendChild(el("p", "empty", "Loading\u2026")); return; }
+  if (!board.rows.length){ body.appendChild(el("p", "empty", "No one is on the board for this period yet. Be the first.")); return; }
+  board.rows.forEach(function(r, i){
+    var row = el("div", "bdrow" + (r.uid === sb.uid ? " me" : ""));
+    row.appendChild(el("span", "n", String(i + 1)));
+    row.appendChild(el("span", "nm", r.name + (r.uid === sb.uid ? " (you)" : "")));
+    row.appendChild(el("span", "tm", fmtDur(r.sec)));
+    body.appendChild(row);
+  });
 }
 function renderAcct(){
   var b = $("acctBtn");
