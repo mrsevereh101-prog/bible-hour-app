@@ -267,7 +267,7 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
 .bdl .r .nm{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bdl .r .tm{flex:none;color:var(--muted);font-variant-numeric:tabular-nums}
 .bdl .msg{font-size:16px;font-weight:600}
-.bdl .sub2{font-size:13.5px;color:var(--muted);margin-top:2px}
+.bdl .sub2{font-size:14.5px;line-height:1.35;color:var(--ink)}
 .home .blk>.card.art{position:relative}
 .artwrap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%}
 .artwrap .artsvg{border-radius:0}
@@ -292,6 +292,20 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
 .plrow{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:15px 2px;border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left;font-weight:600;font-size:17px}
 .plrow .rt{flex:none;font-weight:500;font-size:14px;color:var(--muted)}
 .plrow .rt.on{color:var(--lamp-ink);font-weight:700}
+#hGrid .blk[data-w="3"] .tile .tv{display:none}
+#hGrid .blk[data-w="3"] .tile .tl{font-size:14.5px;font-weight:600;color:var(--ink)}
+#hGrid .blk[data-w="3"] .tile{flex-direction:row;align-items:center;justify-content:center;gap:7px;padding:4px 6px}
+#hGrid .blk[data-w="3"] .tile .tx{flex:none;width:auto}
+#hGrid .blk[data-w="3"] .tile .ic{width:20px;height:20px}
+.vt .vtx{flex:none;font-family:var(--serif);font-size:15px;line-height:1.32;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-top:2px}
+@container (max-height:112px){.duo2 .cta{padding:5px 12px}.duo2 .tcard{padding:7px 12px 8px}.duo2 .wkc{padding:7px 12px}.duo2 .cta b{font-size:15px}}
+.ntin{display:block;width:100%;min-height:110px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font:inherit;font-size:16px;line-height:1.4;resize:vertical}
+.nti{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.nti .nh{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted)}
+.nti .nx{margin:6px 0 0;font-size:15.5px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}
+.nti button{border:0;background:var(--chip);border-radius:999px;padding:5px 11px;font-weight:600;font-size:12.5px;margin-top:8px}
+.vdtx{font-family:var(--serif);font-size:21px;line-height:1.5;margin:0}
+.vdref{margin:10px 0 0;color:var(--lamp-ink);font-weight:600}
 .artday{display:none}
 :root[data-theme="day"] .artday,:root[data-theme="bww"] .artday{display:block}
 :root[data-theme="day"] .artnight,:root[data-theme="bww"] .artnight{display:none}
@@ -385,8 +399,11 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
         <p class="line" id="hStreak"></p>
       </div></div></div>
 
+      <div class="blk" data-id="votd"><button class="card bdt vt" id="tVotd"><span class="bdh"><svg class="ic sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.3 5 5.2.6-3.9 3.6 1.1 5.3L12 15.3 7.3 18l1.1-5.3L4.5 9.1l5.2-.6z"/></svg><span>Verse of the day</span><span class="bdp" id="tVotdRef"></span></span><span class="vtx" id="tVotdTxt"></span></button></div>
+
       <div class="blk" data-id="hist"><button class="tile" id="tHist"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3.5 4.5v4h4"/><path d="M12 7.5V12l3 2"/></svg><span class="tx"><span class="tl">History</span><span class="tv" id="tHistVal"></span></span></button></div>
       <div class="blk" data-id="plan"><button class="tile" id="hPlan"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4h6v3H9z"/><path d="M15 5.5h1a2 2 0 0 1 2 2V19a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7.5a2 2 0 0 1 2-2h1"/><path d="M9 12l1.5 1.5L14 10M9 17h6"/></svg><span class="tx"><span class="tl" id="hPlanLab">Plan</span><span class="tv" id="hPlanVal"></span></span></button></div>
+      <div class="blk" data-id="note"><button class="tile" id="tNote"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19l1-4L16.5 4.5a2 2 0 0 1 3 3L9 18z"/><path d="M14.5 6.5l3 3M5 19h14"/></svg><span class="tx"><span class="tl">Notes</span><span class="tv" id="tNoteVal"></span></span></button></div>
     </div>
   </div>
 </div>
@@ -541,6 +558,28 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
   </div>
 </dialog>
 
+<dialog class="sheet" id="vdSheet" aria-labelledby="vdTitle">
+  <div class="sheet-in">
+    <div class="sheet-head"><h2 id="vdTitle">Verse of the day</h2><button class="x" data-close>Close</button></div>
+    <div class="sheet-body">
+      <p class="vdtx" id="vdTxt"></p>
+      <p class="vdref" id="vdRef"></p>
+      <button class="pbtn go" id="vdGo">Read this chapter</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="ntSheet" aria-labelledby="ntTitle">
+  <div class="sheet-in">
+    <div class="sheet-head"><h2 id="ntTitle">Notes</h2><button class="x" data-close>Close</button></div>
+    <div class="sheet-body">
+      <textarea class="ntin" id="ntText" placeholder="Write a note about what you read" aria-label="New note"></textarea>
+      <div class="mkrow"><button class="go" id="ntSave">Save note</button></div>
+      <div id="ntList" style="margin-top:18px"></div>
+    </div>
+  </div>
+</dialog>
+
 <dialog class="sheet" id="mkSheet" aria-labelledby="mkTitle">
   <div class="sheet-in">
     <div class="sheet-head"><h2 id="mkTitle">My marks</h2><button class="x" data-close>Close</button></div>
@@ -631,6 +670,7 @@ if (!(settings.goal >= 5 && settings.goal <= 480)) settings.goal = 60;
 normText();
 if (!VERSIONS.some(function(v){ return v.id === settings.ver; })) settings.ver = "kjv";
 var marks = sget("bh:marks", {});
+var notes = sget("bh:notes", {});
 var pos = Object.assign({b:0, c:0, y:0}, sget("bh:pos", {}));
 var days = sget("bh:days", {});
 var readMap = sget("bh:read", {});
@@ -977,6 +1017,65 @@ $("tBoard").addEventListener("click", function(){
   hist.tab = "board"; go("history");
 });
 window.addEventListener("resize", function(){ if (screen === "home") applyLayout(); });
+/* ---------- verse of the day ---------- */
+var VOTD = [[42,3,16],[18,23,1],[18,119,105],[19,3,5],[22,40,31],[23,29,11],[49,4,13],[44,8,28],[5,1,9],[39,11,28],[39,6,33],[18,46,1],[22,41,10],[54,1,7],[57,11,1],[44,12,2],[45,13,4],[47,5,22],[48,2,8],[18,27,1],[18,34,8],[18,37,4],[18,91,1],[18,121,1],[19,16,3],[19,18,10],[22,26,3],[24,3,22],[32,6,8],[39,5,16],[39,28,20],[42,1,1],[42,8,12],[42,14,6],[42,15,5],[44,5,8],[44,10,9],[46,5,17],[49,4,6],[50,3,23],[51,5,11],[57,4,12],[57,12,2],[58,1,5],[59,5,7],[61,1,9],[61,4,19],[65,3,20],[4,31,6],[13,7,14],[15,8,10],[35,3,17],[18,100,4],[18,118,24],[19,22,6],[39,7,7],[41,1,37],[42,16,33],[44,15,13],[48,6,10]];
+function votdToday(){
+  var d = new Date(), n = Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  return VOTD[n % VOTD.length];
+}
+function votdRef(v, long){ return (long ? bookName(v[0]) : bookAbbr(v[0])) + " " + v[1] + ":" + v[2]; }
+function votdText(v){
+  var d = cache[settings.ver], t = d && d[v[0]] && d[v[0]][v[1] - 1] && d[v[0]][v[1] - 1][v[2] - 1];
+  return t ? t.replace(/'/g, "\u2019") : null;
+}
+var votdLoading = false;
+function renderVotd(){
+  var v = votdToday(), t = votdText(v);
+  $("tVotdRef").textContent = votdRef(v) + ", " + verInfo().short;
+  $("tVotdTxt").textContent = t || "\u2026";
+  if ($("vdSheet").open){ $("vdTxt").textContent = t || "\u2026"; $("vdRef").textContent = votdRef(v, true) + ", " + verInfo().short; }
+  if (!t && !votdLoading){
+    votdLoading = true;
+    setTimeout(function(){ loadVersion(settings.ver).then(function(){ votdLoading = false; renderVotd(); }, function(){ votdLoading = false; }); }, 500);
+  }
+}
+$("tVotd").addEventListener("click", function(){
+  var v = votdToday();
+  $("vdTxt").textContent = votdText(v) || "\u2026"; $("vdRef").textContent = votdRef(v, true) + ", " + verInfo().short;
+  openSheet($("vdSheet"));
+});
+$("vdGo").addEventListener("click", function(){
+  var v = votdToday();
+  closeSheet($("vdSheet")); pos = {b: v[0], c: v[1] - 1, y: 0}; savePos(); go("read");
+});
+/* ---------- notes ---------- */
+function liveNotes(){ return Object.keys(notes).filter(function(k){ return !notes[k].d; }).sort(function(a, b){ return (notes[b].t || 0) - (notes[a].t || 0); }); }
+function saveNotes(){ sset("bh:notes", notes); cloudTouch("notes"); }
+function renderNoteTile(){ var n = liveNotes().length; $("tNoteVal").textContent = n ? n + (n === 1 ? " note" : " notes") : "Write one"; }
+function renderNotes(){
+  var box = $("ntList"), keys = liveNotes();
+  box.innerHTML = "";
+  if (!keys.length){ box.appendChild(el("p", "empty", "No notes yet. Your notes are private. Only you can see them.")); return; }
+  keys.forEach(function(k){
+    var n = notes[k], it = el("div", "nti"), h = el("div", "nh");
+    h.appendChild(el("span", null, new Date(n.t).toLocaleDateString("en-US", {month: "short", day: "numeric", year: "numeric"})));
+    h.appendChild(el("span", null, n.r || ""));
+    it.appendChild(h); it.appendChild(el("p", "nx", n.x));
+    var rm = el("button", null, "Remove"), armed = false;
+    rm.addEventListener("click", function(){
+      if (!armed){ armed = true; rm.textContent = "Tap again to remove"; return; }
+      notes[k] = {t: Date.now(), d: 1}; saveNotes(); renderNotes(); renderNoteTile();
+    });
+    it.appendChild(rm); box.appendChild(it);
+  });
+}
+$("tNote").addEventListener("click", function(){ renderNotes(); openSheet($("ntSheet")); });
+$("ntSave").addEventListener("click", function(){
+  var x = $("ntText").value.trim();
+  if (!x){ toast("Write something first."); return; }
+  notes["n" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)] = {x: x.slice(0, 4000), t: Date.now(), r: bookName(pos.b) + " " + (pos.c + 1)};
+  $("ntText").value = ""; saveNotes(); renderNotes(); renderNoteTile(); toast("Note saved.");
+});
 /* the picture is a menu: Bible, lamp, hourglass, ink and paper */
 function renderToday(){
   var t = todaySec(), g = goalSec(), mon = mondayOf(new Date()), tot = 0, i, s = streak();
@@ -1217,7 +1316,7 @@ function renderHome(){
   $("tVerVal").textContent = verInfo().short;
   $("tBookVal").textContent = bookAbbr(pos.b) + " " + (pos.c + 1);
   $("tHistVal").textContent = "Wk, Mo, Yr";
-  renderBoardTile(); boardPreview(); artHint();
+  renderBoardTile(); boardPreview(); artHint(); renderVotd(); renderNoteTile();
   applyLayout();
 }
 function setText(){ saveSettings(); applyLook(); renderTextControls(); }
@@ -1610,14 +1709,14 @@ $("pHome").addEventListener("click", function(){ go("home"); });
 
 /* ---------- editable home layout ---------- */
 var DEFAULT_LAYOUT = {
-  v: 4,
-  order: ["board", "art", "vb", "wt", "hist", "plan"],
-  sizes: {board:{w:2,h:4}, art:{w:2,h:7}, vb:{w:2,h:3}, wt:{w:2,h:6}, hist:{w:1,h:3}, plan:{w:1,h:3}}
+  v: 5,
+  order: ["board", "art", "vb", "wt", "votd", "hist", "plan", "note"],
+  sizes: {board:{w:2,h:4}, art:{w:2,h:7}, vb:{w:2,h:3}, wt:{w:2,h:5}, votd:{w:2,h:4}, hist:{w:3,h:2}, plan:{w:3,h:2}, note:{w:3,h:2}}
 };
-var MIN_H = {board:2, art:2, vb:2, wt:4, hist:2, plan:2};
+var MIN_H = {board:2, art:2, vb:2, wt:3, votd:2, hist:2, plan:2, note:2};
 function normLayout(l){
-  if (!l || l.v !== 4) l = null;
-  var ids = DEFAULT_LAYOUT.order, out = {v: 4, auto: !l || l.auto !== false, order: [], sizes: {}};
+  if (!l || l.v !== 5) l = null;
+  var ids = DEFAULT_LAYOUT.order, out = {v: 5, auto: !l || l.auto !== false, order: [], sizes: {}};
   var src = (l && l.order) ? l.order.filter(function(id){ return ids.indexOf(id) >= 0; }) : [];
   ids.forEach(function(id){ if (src.indexOf(id) < 0) src.push(id); });
   out.order = src;
@@ -1637,10 +1736,10 @@ function fitGrid(){
   var grid = $("hGrid"), r = grid.getBoundingClientRect();
   if (!r.width) return 7;
   var artPx = r.width / 1.833, avail = window.innerHeight - r.top - 14;
-  var u = Math.max(16, Math.min(30, (avail - artPx - 16 * 8) / 16));
+  var u = Math.max(16, Math.min(30, (avail - artPx - 18 * 8) / 18));
   grid.style.setProperty("--u", u + "px");
   var rows = Math.floor((avail + 8) / (u + 8));
-  return Math.max(3, Math.min(16, rows - 16, Math.round((artPx + 8) / (u + 8)) + 1));
+  return Math.max(3, Math.min(16, rows - 18, Math.round((artPx + 8) / (u + 8)) + 1));
 }
 function applyLayout(){
   var artH = fitGrid();
@@ -1793,6 +1892,7 @@ function mergeDoc(name, cd){
   if (name === "read") return mergeRead(cd);
   if (name === "prefs") return mergePrefs(cd);
   if (name === "marks") return mergeMarks(cd);
+  if (name === "notes") return mergeNotes(cd);
   if (name.indexOf("pp-") === 0) return mergePP(name.slice(3), cd);
   return cd;
 }
@@ -1830,6 +1930,15 @@ function mergeRead(cd){
   for (var k in m) if (!readMap[k] || readMap[k] < m[k]) readMap[k] = m[k];
   sset("bh:read", readMap);
   return {m: readMap};
+}
+function mergeNotes(cd){
+  var m = cd.n || {}, k;
+  for (k in m) if (!notes[k] || (m[k].t || 0) > (notes[k].t || 0)) notes[k] = m[k];
+  var cut = Date.now() - 90 * 86400000;
+  for (k in notes) if (notes[k].d && (notes[k].t || 0) < cut) delete notes[k];
+  sset("bh:notes", notes);
+  if (screen === "home") renderNoteTile();
+  return {n: notes};
 }
 function mergeMarks(cd){
   var m = cd.m || {};
@@ -1877,7 +1986,7 @@ function pullAll(){
     for (k in mine) months[monthOf(k)] = 1;
     for (k in resets) months[monthOf(k)] = 1;
     Object.keys(months).forEach(function(m){ dirty["m-" + m] = true; });
-    dirty.read = true; dirty.prefs = true; dirty.marks = true;
+    dirty.read = true; dirty.prefs = true; dirty.marks = true; dirty.notes = true;
     Object.keys(planState.prog).forEach(function(id){ dirty["pp-" + id] = true; });
     clearTimeout(flushTimer);
     flushTimer = setTimeout(flushAll, 1500);
@@ -1962,7 +2071,7 @@ function sbStart(){
     boardMine().then(function(){ boardPush(true); }, function(){});
   });
 }
-var SB_WIPE = ["days", "mine", "others", "rs", "read", "plan", "marks", "pos", "done", "started", "layout", "prefs_t"];
+var SB_WIPE = ["days", "mine", "others", "rs", "read", "plan", "marks", "notes", "pos", "done", "started", "layout", "prefs_t"];
 function sbAuth(kind, email, pass){
   var path = kind === "up" ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password";
   return sbReq("POST", path, {email: email, password: pass}).then(function(j){
@@ -2071,8 +2180,8 @@ function boardLoad(){
 function renderBoard(body){
   var note = el("div", "bdnote");
   note.appendChild(el("b", null, "Readers board"));
-  note.appendChild(el("span", null, "This is not a competition. It is here to encourage one another to keep reading."));
-  note.appendChild(el("i", null, "\u201cAnd let us consider one another to provoke unto love and to good works.\u201d Hebrews 10:24"));
+  note.appendChild(el("span", null, "We encourage each other, we build each other up."));
+  note.appendChild(el("i", null, "1 Thessalonians 5:11"));
   body.appendChild(note);
   if (!sb){
     body.appendChild(el("p", "empty", "Sign in to see the readers board and to add your name."));
@@ -2134,7 +2243,7 @@ function boardPreview(){
 function renderBoardTile(){
   var box = $("tBoardList"), per = $("tBoardPer");
   box.innerHTML = ""; per.textContent = "";
-  function msg(a, b){ box.appendChild(el("span", "msg", a)); box.appendChild(el("span", "sub2", b)); }
+  function msg(a, b){ per.textContent = a; box.appendChild(el("span", "sub2", b)); }
   if (supaMode && sb && boardTop.rows && boardTop.rows.length){
     per.textContent = "This week";
     boardTop.rows.forEach(function(r, i){
@@ -2144,9 +2253,9 @@ function renderBoardTile(){
       row.appendChild(el("span", "tm", fmtDur(r.week_sec)));
       box.appendChild(row);
     });
-  } else if (supaMode && sb && boardTop.rows) msg("No one on the board yet this week", "Tap to add your name and be the first.");
-  else if (supaMode && !sb) msg("Top 100 readers", "Sign in to see who is reading. An encouragement, not a competition.");
-  else msg("Top 100 readers", "An encouragement, not a competition.");
+  } else if (supaMode && sb && boardTop.rows) msg("This week", "No one is on the board yet this week. Tap to add your name and be the first.");
+  else if (supaMode && !sb) msg("Top 100 readers", "We encourage each other, we build each other up. 1 Thessalonians 5:11");
+  else msg("Top 100 readers", "We encourage each other, we build each other up. 1 Thessalonians 5:11");
 }
 function renderAcct(){
   var b = $("acctBtn");
