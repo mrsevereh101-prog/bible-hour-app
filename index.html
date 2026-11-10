@@ -402,7 +402,19 @@ dialog.sheet::backdrop{background:rgba(8,12,28,.6)}
       <input class="acin" id="acEmail" type="email" autocomplete="email" inputmode="email" placeholder="Email" aria-label="Email">
       <input class="acin" id="acPass" type="password" autocomplete="current-password" placeholder="Password (6 or more characters)" aria-label="Password">
       <div class="mkrow"><button class="go" id="acIn">Sign in</button><button id="acUp">Create account</button></div>
+      <button class="back" id="acForgot" style="margin:14px 0 0">Forgot password?</button>
       <p class="acmsg" id="acMsg" role="status"></p>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="pwSheet" aria-labelledby="pwTitle">
+  <div class="sheet-in">
+    <div class="sheet-head"><h2 id="pwTitle">Choose a new password</h2><button class="x" data-close>Close</button></div>
+    <div class="sheet-body">
+      <input class="acin" id="pwNew" type="password" autocomplete="new-password" placeholder="New password (6 or more characters)" aria-label="New password" style="margin-top:0">
+      <div class="mkrow"><button class="go" id="pwSave">Save password</button></div>
+      <p class="acmsg" id="pwMsg" role="status"></p>
     </div>
   </div>
 </dialog>
@@ -1785,9 +1797,29 @@ function sbFromHash(){
     return sbEnter();
   }).then(function(res){
     renderAcct();
+    if (q.type === "recovery" && res !== "reload"){ $("pwMsg").textContent = ""; openSheet($("pwSheet")); return; }
     if (res === "ok") toast(cloud.ready ? "Signed in. Your progress is saved online." : "Signed in, but the online save could not be reached.");
   }, function(){ toast("Google sign-in did not finish. Please try again."); });
 }
+$("acForgot").addEventListener("click", function(){
+  var em = $("acEmail").value.trim();
+  if (!/^\S+@\S+\.\S+$/.test(em)){ acMsg("Type your email in the box above, then press Forgot password again."); return; }
+  if (!/^https?:$/.test(location.protocol)){ acMsg("Password reset works on the public web page only."); return; }
+  acMsg("Sending\u2026");
+  sbReq("POST", "/auth/v1/recover?redirect_to=" + encodeURIComponent(location.origin + location.pathname), {email: em}).then(function(){
+    acMsg("If that email has an account, we sent it a link. Open the email and tap the link to choose a new password.");
+  }, function(e){
+    acMsg(/rate limit|too many|security purposes/i.test((e && e.message) || "") ? "Too many emails were sent just now. Please wait a few minutes and try again." : "Could not send the email. Please try again later.");
+  });
+});
+$("pwSave").addEventListener("click", function(){
+  var pw = $("pwNew").value;
+  if (pw.length < 6){ $("pwMsg").textContent = "The password needs 6 or more characters."; return; }
+  $("pwMsg").textContent = "Saving\u2026";
+  sbToken().then(function(t){ return sbReq("PUT", "/auth/v1/user", {password: pw}, t); }).then(function(){
+    $("pwNew").value = ""; closeSheet($("pwSheet")); toast("Password saved. You are signed in.");
+  }, function(e){ $("pwMsg").textContent = (e && e.message) || "Could not save the password. Please try again."; });
+});
 $("acGoogle").addEventListener("click", function(){
   if (!/^https?:$/.test(location.protocol)){ acMsg("Google sign-in works on the public web page only."); return; }
   acMsg("Opening Google\u2026");
