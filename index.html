@@ -497,6 +497,22 @@ dialog.sheet{border:1.500px solid transparent;border-bottom:0;background:linear-
 #thSheet .sheet-body h3{margin:6px 0 4px}
 .fbb{max-height:34vh}
 
+/* v5: full-screen Readers page, bigger profile picture with the flag on it */
+#thSheet{width:100%;max-width:none;height:100vh;max-height:100vh;margin:0;border-radius:0;border:0;background:var(--surface)}
+#thSheet .sheet-in{height:100%;max-height:100vh}
+#thSheet .sheet-head{padding-top:calc(10px + env(safe-area-inset-top,0px))}
+@supports (height:1dvh){#thSheet{height:100dvh;max-height:100dvh}#thSheet .sheet-in{max-height:100dvh}}
+.fbb{max-height:none;overflow:visible}
+.tri.pf{position:relative}
+.tri.pf .sync{display:none}
+.tri.pf .pface{width:62px;height:62px}
+.tri.pf .pfl{position:absolute;left:50%;top:50%;transform:translate(13px,11px);font-size:20px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))}
+.home .duo2 .tcard{padding:5px 12px 6px}
+.prow{min-height:19px}
+.home .duo2 .cta{padding:4px 12px}
+.home .duo2 .cta b{font-size:14.500px}
+.pfboard{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
 /* gold 3D letters and frame (pictures made with Gemini) */
 [data-gold]{white-space:nowrap}
 [data-gold] .gsr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
@@ -646,6 +662,7 @@ dialog.sheet{border:1.500px solid transparent;border-bottom:0;background:linear-
       <textarea class="acin" id="pfThought" rows="2" maxlength="200" placeholder="A word of encouragement for other readers" aria-label="Your daily thought"></textarea>
       <p class="pfnote"><span id="pfCount">0</span> of 200 letters. Other signed-in readers can see your name, photo, flag and thought.</p>
       <button class="pbtn go" id="pfSave">Save profile</button>
+      <div id="pfBoardBox" hidden><h3>Readers board</h3><div class="pfboard"><span class="pfnote" id="pfBoardTxt"></span><button class="pbtn" id="pfLeave">Leave the board</button></div></div>
       <h3>Account</h3>
       <p class="pfnote" id="pfAcct"></p>
       <button class="pbtn" id="pfSign">Sign in</button>
@@ -2767,6 +2784,8 @@ $("pfFind").addEventListener("input", renderFlagList);
 function renderProfAcct(){
   $("pfAcct").textContent = !supaMode ? "Your profile is saved on this device. Sharing with other readers works in the public app." : sb ? "Signed in as " + sb.email + "." : "Sign in to share your profile and thought with other readers. Without an account they stay on this device.";
   $("pfSign").hidden = !supaMode;
+  $("pfBoardBox").hidden = !(supaMode && sb && board.name);
+  $("pfBoardTxt").textContent = board.name ? "You are on the board as " + board.name + ". To change the name, change your name above and save." : "";
   $("pfSign").textContent = sb ? "Sign out" : "Sign in or create account";
 }
 function openProfile(focusThought){
@@ -2828,6 +2847,7 @@ $("pfSave").addEventListener("click", function(){
   var th = $("pfThought").value.replace(/\s+/g, " ").trim().slice(0, 200);
   prof = {name: $("pfName").value.replace(/\s+/g, " ").trim().slice(0, 24), flags: flagsOf(profEdit.flags).join(","), face: profEdit.face, thought: th, tat: th ? (th === prof.thought && prof.tat ? prof.tat : Date.now()) : 0};
   saveProf(); renderFace();
+  if (supaMode && sb && board.name && prof.name && prof.name !== board.name){ board.name = prof.name; sset("bh:bname", prof.name); board.loadedFor = null; boardPush(true); }
   $("pfSave").disabled = true; $("pfSave").textContent = "Saving…";
   profPush().then(function(res){
     closeSheet($("pfSheet")); thoughts.at = 0;
@@ -2835,6 +2855,9 @@ $("pfSave").addEventListener("click", function(){
   });
 });
 $("pfSign").addEventListener("click", function(){ closeSheet($("pfSheet")); $("acctBtn").click(); });
+$("pfLeave").addEventListener("click", function(){
+  boardReq("DELETE", "?user_id=eq." + sb.uid).then(function(){ board.name = null; sset("bh:bname", null); board.loadedFor = null; boardTop.at = 0; renderProfAcct(); toast("Your name was removed from the board."); }, function(){ toast("Could not leave right now. Please try again."); });
+});
 
 /* ---------- daily thoughts: words of encouragement from readers ---------- */
 var thoughts = {rows: null, err: null, at: 0};
@@ -2883,7 +2906,11 @@ function loadThoughts(){
 function renderFeed(){
   var bb = $("fbBoard");
   bb.innerHTML = "";
-  if (supaMode) renderBoard(bb);
+  if (supaMode){
+    renderBoard(bb);
+    var bn = bb.querySelectorAll(".bdnote");
+    if (sb && board.name && !board.editing && bn[1]) bn[1].remove();
+  }
   else bb.appendChild(el("p", "empty", "The readers board is in the public app: mrsevereh101-prog.github.io/bible-hour-app"));
   renderThoughts();
 }
