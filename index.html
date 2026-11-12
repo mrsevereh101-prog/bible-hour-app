@@ -542,6 +542,20 @@ button.pface{padding:0;cursor:pointer;font:inherit}
 .tdpg .tile{min-height:52px}
 #hProgRow{cursor:pointer}
 
+/* glass over the home screen: it dips under the finger and springs back */
+#glass{position:fixed;inset:0;pointer-events:none;z-index:5}
+#glass::before{content:"";position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.07) 0%,rgba(255,255,255,.02) 22%,transparent 42%,transparent 72%,rgba(255,255,255,.03) 100%)}
+#glass::after{content:"";position:absolute;inset:0;background:radial-gradient(230px circle at var(--gx,50%) var(--gy,50%),rgba(255,246,214,.20),transparent 70%);opacity:0;transition:opacity .4s}
+#glass.on::after{opacity:1;transition:opacity .05s}
+:root[data-theme="day"] #glass::before{background:linear-gradient(115deg,rgba(255,255,255,.5) 0%,rgba(255,255,255,.12) 22%,transparent 42%)}
+:root[data-theme="day"] #glass::after{background:radial-gradient(230px circle at var(--gx,50%) var(--gy,50%),rgba(242,193,78,.22),transparent 70%)}
+#hGrid{transition:transform .42s cubic-bezier(.3,1.5,.5,1)}
+#hGrid.dip{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) scale(.994);transition:transform .07s ease-out}
+.blk,.hhead .pill,.hhead button{transition:transform .42s cubic-bezier(.3,1.7,.5,1),filter .35s}
+.sink{transform:scale(.972)!important;filter:brightness(1.14);transition:transform .07s ease-out,filter .07s!important}
+.sink.soft{transform:scale(.99)!important}
+@media (prefers-reduced-motion:reduce){#hGrid.dip{transform:none}.sink{transform:none!important}}
+
 /* gold 3D letters and frame (pictures made with Gemini) */
 [data-gold]{white-space:nowrap}
 [data-gold] .gsr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
@@ -565,6 +579,7 @@ button.pface{padding:0;cursor:pointer;font:inherit}
 
 <!-- HOME -->
 <div id="vHome">
+  <div id="glass" aria-hidden="true"></div>
   <div class="wrap home">
     <div class="hhead">
       <div class="hleft"><h1 class="brand" data-gold="1">Bible Hour</h1></div>
@@ -902,6 +917,10 @@ button.pface{padding:0;cursor:pointer;font:inherit}
       <div class="stepper" id="hSize" style="margin-top:0"></div>
       <div class="sub-h">Interface size (menus and buttons)</div>
       <div class="seg" id="hUi"></div>
+      <div class="sub-h">Glass press feel (home screen)</div>
+      <div class="seg" id="hPress"></div>
+      <div class="sub-h">Click sound</div>
+      <div class="seg" id="hSnd"></div>
       <div class="sub-h">Font</div>
       <div class="seg" id="hFont"></div>
       <div class="sub-h">Weight</div>
@@ -1724,6 +1743,8 @@ function renderHome(){
 }
 function setText(){ saveSettings(); applyLook(); renderTextControls(); }
 function renderTextControls(){
+  seg($("hPress"), [["On", true], ["Off", false]], function(v){ return pressOn() === v; }, function(v){ settings.press = v; saveSettings(); renderTextControls(); });
+  seg($("hSnd"), [["On", true], ["Off", false]], function(v){ return soundOn() === v; }, function(v){ settings.snd = v; saveSettings(); renderTextControls(); if (v) clickSound(true); });
   seg($("hUi"), [["Normal", 1], ["Large", 1.1], ["Larger", 1.2]], function(v){ return uiZ() === v; }, function(v){
     settings.ui = v; saveSettings(); applyLook(); renderTextControls(); if (screen === "home") applyLayout();
   });
@@ -3153,6 +3174,62 @@ tutSet.addEventListener("click", function(){
 (function(){ var b = $("setSheet").querySelector(".sheet-body"), h = el("h3", null, "Tutorial"); b.appendChild(h); b.appendChild(tutSet); renderTutSet(); })();
 [].forEach.call(document.querySelectorAll("dialog.sheet"), function(d){ d.addEventListener("close", function(){ setTimeout(tutShow, 250); }); });
 window.addEventListener("resize", function(){ tutShow(); });
+
+/* ---------- glass press feel: a click sound, a small dip and a spring back ---------- */
+var press = null, AC = null;
+function pressOn(){ return settings.press !== false; }
+function soundOn(){ return settings.snd !== false; }
+function calm(){ try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch(e){ return false; } }
+function clickSound(down){
+  if (!soundOn()) return;
+  try {
+    var Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return;
+    if (!AC) AC = new Ctx();
+    if (AC.state === "suspended") AC.resume();
+    var t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+    o.type = "triangle"; o.frequency.setValueAtTime(down ? 1800 : 1400, t); o.frequency.exponentialRampToValueAtTime(down ? 600 : 500, t + .035);
+    g.gain.setValueAtTime(down ? .07 : .04, t); g.gain.exponentialRampToValueAtTime(.0001, t + .05);
+    o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + .06);
+  } catch(e){}
+}
+function pressStart(e){
+  if (press || screen !== "home" || editing || $("vHome").hidden || e.isPrimary === false) return;
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  if (document.querySelector("dialog[open]")) return;
+  var t = e.target && e.target.closest ? e.target.closest("#vHome button, #vHome [role=button]") : null;
+  if (!t) return;
+  var blk = t.closest(".blk") || t;
+  press = {el: blk, x: e.clientX, y: e.clientY, id: e.pointerId};
+  if (pressOn() && !calm()){
+    var g = $("hGrid"), r = g.getBoundingClientRect();
+    var nx = Math.max(-1, Math.min(1, (e.clientX - r.left) / (r.width || 1) * 2 - 1)), ny = Math.max(-1, Math.min(1, (e.clientY - r.top) / (r.height || 1) * 2 - 1));
+    g.style.setProperty("--rx", (-ny * 1.5).toFixed(2) + "deg"); g.style.setProperty("--ry", (nx * 1.5).toFixed(2) + "deg");
+    g.classList.add("dip");
+    blk.classList.add("sink"); if (blk.getAttribute("data-id") === "art") blk.classList.add("soft");
+  }
+  if (pressOn()){
+    var gl = $("glass"); gl.style.setProperty("--gx", e.clientX + "px"); gl.style.setProperty("--gy", e.clientY + "px"); gl.classList.add("on");
+    try { if (navigator.vibrate) navigator.vibrate(6); } catch(x){}
+  }
+  clickSound(true);
+}
+function pressEnd(ok){
+  if (!press) return;
+  var p = press; press = null;
+  $("hGrid").classList.remove("dip");
+  p.el.classList.remove("sink"); p.el.classList.remove("soft");
+  $("glass").classList.remove("on");
+  if (ok) clickSound(false);
+}
+document.addEventListener("pointerdown", pressStart, true);
+document.addEventListener("pointerup", function(){ pressEnd(true); }, true);
+document.addEventListener("pointercancel", function(){ pressEnd(false); }, true);
+document.addEventListener("pointermove", function(e){
+  if (press && (Math.abs(e.clientX - press.x) > 10 || Math.abs(e.clientY - press.y) > 10)) pressEnd(false);
+}, true);
+window.addEventListener("scroll", function(){ pressEnd(false); }, {passive: true});
+window.addEventListener("blur", function(){ pressEnd(false); });
+document.addEventListener("visibilitychange", function(){ if (document.hidden) pressEnd(false); });
 
 /* ---------- gold 3D titles ---------- */
 var GOLD = {"A":[0,130],"B":[130,103],"C":[233,120],"D":[353,114],"E":[467,97],"F":[564,95],"G":[659,111],"H":[770,107],"I":[877,37],"J":[914,97],"K":[1011,111],"L":[1122,89],"M":[1211,121],"N":[1332,107],"O":[1439,116],"P":[1555,103],"Q":[1658,116],"R":[1774,106],"S":[1880,104],"T":[1984,108],"U":[2092,105],"V":[2197,115],"W":[2312,149],"X":[2461,114],"Y":[2575,116],"Z":[2691,96],"0":[2787,102],"1":[2889,64],"2":[2953,95],"3":[3048,99],"4":[3147,100],"5":[3247,96],"6":[3343,96],"7":[3439,90],"8":[3529,98],"9":[3627,98],":":[3725,44],".":[3769,44],"%":[3813,148],"-":[3961,85],"&":[4046,122],",":[4168,40]}, GU = 167.0;
