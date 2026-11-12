@@ -1126,7 +1126,7 @@ function renderChapter(mode){
   if (pl2){
     var pi2 = planInfo(pl2);
     if (pi2.idx[g2] >= 0){
-      note.textContent = pl2.name + ", day " + (pi2.dayOf[pi2.idx[g2]] + 1) + " of " + pl2.days + (progOf(pl2).read[g2] ? ", read" : "");
+      note.textContent = pl2.name + ", day " + (pi2.dayOf[pi2.idx[g2]] + 1) + " of " + pDays(pl2) + (progOf(pl2).read[g2] ? ", read" : "");
       note.hidden = false;
     }
   }
@@ -1155,7 +1155,7 @@ function markRead(){
     if (pi.idx[g] >= 0){
       var pr = progOf(p), d = pi.dayOf[pi.idx[g]], was = dayDone(p, d);
       pr.read[g] = 1;
-      if (!was && dayDone(p, d)) toast(doneDays(p) >= p.days ? "Plan complete. Well done." : "Day " + (d + 1) + " complete.");
+      if (!was && dayDone(p, d)) toast(doneDays(p) >= pDays(p) ? "Plan complete. Well done." : "Day " + (d + 1) + " complete.");
       savePlan();
     }
   }
@@ -1402,7 +1402,7 @@ function renderToday(){
   $("tdGoal").textContent = settings.goal + " min";
   $("tdGoalVal").textContent = settings.goal + " min a day";
   var tp = activePlan(), tcd = tp ? currentDay(tp) : 0;
-  $("tdPlanVal").textContent = tp ? tp.name + (tcd >= tp.days ? ", done" : ", day " + (tcd + 1) + " of " + tp.days) : "Pick a plan";
+  $("tdPlanVal").textContent = tp ? tp.name + (tcd >= pDays(tp) ? ", done" : ", day " + (tcd + 1) + " of " + pDays(tp)) : "Pick a plan";
   $("tdWeekTot").textContent = fmtDur(tot);
   weekBars($("tdWeek"), mon);
   $("tdStreak").textContent = s > 0 ? s + "-day streak. Keep it going." : "No streak yet. Reach your goal to start one.";
@@ -1987,24 +1987,43 @@ var planState = sget("bh:plan", {active: null, prog: {}});
 function savePlan(){ sset("bh:plan", planState); touchPrefs(); if (planState.active) cloudTouch("pp-" + planState.active); }
 function planById(id){ for (var i = 0; i < PD.plans.length; i++) if (PD.plans[i].id === id) return PD.plans[i]; return null; }
 function activePlan(){ return planState.active ? planById(planState.active) : null; }
-var planCache = {};
-function planInfo(p){
-  if (planCache[p.id]) return planCache[p.id];
-  var ord = [], i, j;
-  if (p.order === "canon"){ for (i = 0; i < TOTAL_CH; i++) ord.push(i); }
+var planCache = {}, ordCache = {};
+function goalPlan(p){ return !!p.cat; }
+function planOrder(p){
+  if (ordCache[p.id]) return ordCache[p.id];
+  var ord = [], j;
+  if (p.order === "canon"){ for (j = 0; j < TOTAL_CH; j++) ord.push(j); }
   else if (p.order === "chron") ord = PD.chron;
   else { for (j = p.order[0]; j <= p.order[1]; j++) ord.push(j); }
-  var idx = [], dayOf = [];
-  for (i = 0; i < TOTAL_CH; i++) idx.push(-1);
-  ord.forEach(function(g, k){ idx[g] = k; });
-  for (var d = 0; d < p.days; d++){
-    var s = p.cuts[d], e = d + 1 < p.days ? p.cuts[d + 1] : ord.length;
-    for (var q = s; q < e; q++) dayOf[q] = d;
-  }
-  planCache[p.id] = {order: ord, idx: idx, dayOf: dayOf};
-  return planCache[p.id];
+  ordCache[p.id] = ord;
+  return ord;
 }
-function dayRange(p, d){ return [p.cuts[d], d + 1 < p.days ? p.cuts[d + 1] : planInfo(p).order.length]; }
+/* a day is sized to the daily goal: about 200 words a minute, each day as close to the goal as the chapters allow */
+function planInfo(p){
+  var key = p.id + (goalPlan(p) ? "|" + settings.goal : "");
+  if (planCache[key]) return planCache[key];
+  var ord = planOrder(p), idx = [], dayOf = [], cuts, days, i, k;
+  for (i = 0; i < TOTAL_CH; i++) idx.push(-1);
+  ord.forEach(function(g, q){ idx[g] = q; });
+  if (goalPlan(p)){
+    cuts = []; var cur = 0, target = Math.max(1, settings.goal);
+    ord.forEach(function(g, q){
+      var m = (PD.words[g] || 0) / 200;
+      if (q === 0 || (cur > 0 && cur + m - target > target - cur)){ cuts.push(q); cur = 0; }
+      cur += m;
+    });
+    days = cuts.length;
+  } else { cuts = p.cuts; days = p.days; }
+  for (var d = 0; d < days; d++){
+    var s0 = cuts[d], e0 = d + 1 < days ? cuts[d + 1] : ord.length;
+    for (k = s0; k < e0; k++) dayOf[k] = d;
+  }
+  planCache[key] = {order: ord, idx: idx, dayOf: dayOf, cuts: cuts, days: days};
+  return planCache[key];
+}
+function pDays(p){ return planInfo(p).days; }
+function pMinutes(p){ var t = 0; planOrder(p).forEach(function(g){ t += (PD.words[g] || 0) / 200; }); return Math.round(t); }
+function dayRange(p, d){ var f = planInfo(p); return [f.cuts[d], d + 1 < f.days ? f.cuts[d + 1] : f.order.length]; }
 function dayGis(p, d){ var r = dayRange(p, d); return planInfo(p).order.slice(r[0], r[1]); }
 function progOf(p){
   if (!planState.prog[p.id]) planState.prog[p.id] = {start: todayKey(), read: {}};
@@ -2015,8 +2034,8 @@ function dayDone(p, d){
   for (var i = r[0]; i < r[1]; i++) if (!pr.read[ord[i]]) return false;
   return true;
 }
-function currentDay(p){ for (var d = 0; d < p.days; d++) if (!dayDone(p, d)) return d; return p.days; }
-function doneDays(p){ var n = 0; for (var d = 0; d < p.days; d++) if (dayDone(p, d)) n++; return n; }
+function currentDay(p){ var n = pDays(p); for (var d = 0; d < n; d++) if (!dayDone(p, d)) return d; return n; }
+function doneDays(p){ var n = 0, t = pDays(p); for (var d = 0; d < t; d++) if (dayDone(p, d)) n++; return n; }
 function anyRead(p){ var pr = planState.prog[p.id]; return !!pr && Object.keys(pr.read).length > 0; }
 function passage(gis, abbr){
   var parts = [], cur = null;
@@ -2061,7 +2080,7 @@ function renderPlanCard(){
   }
   var cd = currentDay(p);
   $("hPlanLab").textContent = PLAN_ABBR[p.id] || p.name;
-  $("hPlanVal").textContent = cd >= p.days ? "Done" : "D" + (cd + 1) + "/" + p.days + ", " + passage(dayGis(p, cd), true);
+  $("hPlanVal").textContent = cd >= pDays(p) ? "Done" : "D" + (cd + 1) + "/" + pDays(p) + ", " + passage(dayGis(p, cd), true);
 }
 var stopArmed = false;
 function renderPlanList(){
@@ -2072,7 +2091,7 @@ function renderPlanList(){
     list.forEach(function(pl){
       var on = planState.active === pl.id, b = el("button", "plrow");
       b.appendChild(el("span", null, pl.name));
-      b.appendChild(el("span", "rt" + (on ? " on" : ""), on ? "Active" : pl.days + " days"));
+      b.appendChild(el("span", "rt" + (on ? " on" : ""), on ? "Active" : pDays(pl) + " days"));
       b.addEventListener("click", function(){ renderPlanDetail(pl); openSheet($("pdSheet")); });
       box.appendChild(b);
     });
@@ -2086,7 +2105,9 @@ function renderPlanDetail(pl){
   var box = $("pdBody");
   box.innerHTML = "";
   box.appendChild(el("p", "pdesc", pl.desc));
-  box.appendChild(el("div", "pmeta", pl.days + " days, about " + minsText(pl.min) + " a day"));
+  if (goalPlan(pl)) box.appendChild(el("div", "pmeta", pDays(pl) + " days at your goal of " + settings.goal + " min a day"));
+  else box.appendChild(el("div", "pmeta", pl.days + " days, about " + minsText(pl.min) + " a day"));
+  box.appendChild(el("p", "foot", goalPlan(pl) ? "About " + minsText(pMinutes(pl)) + " of reading in all. The days follow your daily goal: change your goal and the days change too." : "This plan has a fixed length. Your daily goal is " + settings.goal + " min" + (pl.min > settings.goal ? ", which is less than the " + minsText(pl.min) + " a day this plan needs." : ".")));
   var isActive = planState.active === pl.id;
   var b = el("button", "pbtn" + (isActive ? "" : " go"), isActive ? "Active plan" : (anyRead(pl) ? "Continue this plan" : "Start this plan"));
   b.disabled = isActive;
@@ -2110,9 +2131,10 @@ function renderPlans(){
     var card = el("div", "card");
     card.appendChild(el("div", "lab", "Your plan"));
     card.appendChild(el("div", "pname", p.name));
-    card.appendChild(el("p", "pdesc", cd >= p.days ? "Plan complete. Well done." : "Day " + (cd + 1) + " of " + p.days + ", " + dn + " days done"));
-    planBar(card, dn / p.days);
-    if (cd < p.days){
+    card.appendChild(el("p", "pdesc", cd >= pDays(p) ? "Plan complete. Well done." : "Day " + (cd + 1) + " of " + pDays(p) + ", " + dn + " days done"));
+    if (goalPlan(p)) card.appendChild(el("p", "foot", "Each day is sized to your daily goal of " + settings.goal + " min."));
+    planBar(card, dn / pDays(p));
+    if (cd < pDays(p)){
       var go1 = el("button", "cta");
       go1.appendChild(el("b", null, "Read today\u2019s passage"));
       go1.appendChild(el("span", null, passage(dayGis(p, cd))));
@@ -2811,7 +2833,7 @@ $("hProgRow").addEventListener("click", openToday);
 $("hProgRow").addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); openToday(); } });
 $("tdGoalBtn").addEventListener("click", function(){ $("pGoalBtn").click(); });
 $("tdPlanBtn").addEventListener("click", function(){ closeSheet($("tdSheet")); go("plans"); });
-$("goalSheet").addEventListener("close", function(){ if (screen === "home") renderHome(); if ($("tdSheet").open) renderToday(); });
+$("goalSheet").addEventListener("close", function(){ if (screen === "home") renderHome(); if (screen === "plans") renderPlans(); if ($("tdSheet").open) renderToday(); });
 
 /* ---------- profile: face, flags and a daily thought ---------- */
 var CC = "AF AL DZ AD AO AG AR AM AU AT AZ BS BH BD BB BY BE BZ BJ BT BO BA BW BR BN BG BF BI CV KH CM CA CF TD CL CN CO KM CG CD CR CI HR CU CY CZ DK DJ DM DO EC EG SV GQ ER EE SZ ET FJ FI FR GA GM GE DE GH GR GD GT GN GW GY HT HN HU IS IN ID IR IQ IE IL IT JM JP JO KZ KE KI KP KR KW KG LA LV LB LS LR LY LI LT LU MG MW MY MV ML MT MH MR MU MX FM MD MC MN ME MA MZ MM NA NR NP NL NZ NI NE NG MK NO OM PK PW PS PA PG PY PE PH PL PT PR QA RO RU RW KN LC VC WS SM ST SA SN RS SC SL SG SK SI SB SO ZA SS ES LK SD SR SE CH SY TW TJ TZ TH TL TG TO TT TN TR TM TV UG UA AE GB US UY UZ VU VA VE VN YE ZM ZW".split(" ");
