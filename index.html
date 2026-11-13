@@ -615,6 +615,13 @@ dialog.sheet .sheet-body,.chatl,.pflist{overscroll-behavior:contain}
 .home .duo2 .wkh .tot{font-size:14.5px}
 .home .duo2 .hchev{font-size:19px}
 
+.vgrp{margin:16px 0 6px;font-size:13.5px;font-weight:600;color:var(--muted)}
+.vers .vgrp:first-child{margin-top:0}
+.licrow{padding:10px 0;border-bottom:1px solid var(--line)}
+.licrow b{display:block;font-size:15px}
+.licrow span{display:block;margin-top:2px;font-size:13.5px;line-height:1.4;color:var(--muted)}
+#verSheet .mkbtn{margin-top:18px}
+
 /* gold 3D letters and frame (pictures made with Gemini) */
 [data-gold]{white-space:nowrap}
 [data-gold] .gsr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
@@ -965,7 +972,15 @@ dialog.sheet .sheet-body,.chatl,.pflist{overscroll-behavior:contain}
   <div class="sheet-in">
     <div class="sheet-head"><h2 id="verTitle">Bible version</h2><button class="x" data-close>Close</button></div>
     <div class="sheet-body"><div class="vers" id="verList"></div>
+      <button class="mkbtn" id="licBtn"><span>Licenses and sources</span></button>
 </div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="licSheet" aria-labelledby="licTitle">
+  <div class="sheet-in">
+    <div class="sheet-head"><h2 id="licTitle">Licenses and sources</h2><button class="x" data-close>Close</button></div>
+    <div class="sheet-body"><p class="foot" style="margin:0 0 6px">Bible Hour only includes Bibles in the public domain. Texts published before 1929 are in the public domain in the United States. If you are a rights holder and think a text should not be here, tell us and we will remove it.</p><div id="licBody"></div></div>
   </div>
 </dialog>
 
@@ -1002,7 +1017,15 @@ var VERSIONS = [
   {id:"akjv", short:"AKJV", name:"American King James Version", note:"1999, King James with modern words", lang:"en"},
   {id:"web", short:"WEB", name:"World English Bible", note:"2000, modern English", lang:"en"},
   {id:"gnv", short:"GNV", name:"Geneva Bible, original spelling", note:"1599, English, as first printed", lang:"en"},
-  {id:"lsg", short:"LSG", name:"Louis Segond", note:"1910, Fran\u00e7ais", lang:"fr"}
+  {id:"lsg", short:"LSG", name:"Louis Segond", note:"1910, Fran\u00e7ais", lang:"fr"},
+  {id:"rv09", short:"RV1909", name:"Reina-Valera 1909", note:"1909, Espa\u00f1ol", lang:"es", file:"bibles/es.bin"},
+  {id:"lut", short:"LUT1912", name:"Lutherbibel 1912", note:"1912, Deutsch", lang:"de", file:"bibles/de.bin"},
+  {id:"riv", short:"RIV1924", name:"Riveduta (Luzzi) 1924", note:"1924, Italiano", lang:"it", file:"bibles/it.bin"},
+  {id:"tb", short:"TB1917", name:"Tradu\u00e7\u00e3o Brasileira 1917", note:"1917, Portugu\u00eas", lang:"pt", file:"bibles/pt.bin"},
+  {id:"syn", short:"\u0421\u0418\u041d", name:"\u0421\u0438\u043d\u043e\u0434\u0430\u043b\u044c\u043d\u044b\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434 1876", note:"1876, \u0420\u0443\u0441\u0441\u043a\u0438\u0439", lang:"ru", file:"bibles/ru.bin"},
+  {id:"cuv", short:"CUV", name:"\u548c\u5408\u672c Chinese Union Version 1919", note:"1919, \u7e41\u9ad4\u4e2d\u6587", lang:"zh", file:"bibles/zh.bin"},
+  {id:"cuvs", short:"CUVS", name:"\u548c\u5408\u672c Chinese Union Version 1919", note:"1919, \u7b80\u4f53\u4e2d\u6587", lang:"zs", file:"bibles/zs.bin"},
+  {id:"svv", short:"SV1637", name:"Statenvertaling 1637", note:"1637, Nederlands", lang:"nl", file:"bibles/nl.bin"}
 ];
 var OT_COUNT = 39, TOTAL_CH = 1189, IDLE_MIN = 60000, IDLE_MAX = 300000, IDLE_GRACE = 30000, WORD_MS = 2000, PAPER_CHECK = 1800000, PAPER_MAXADD = 10800000;
 
@@ -1079,12 +1102,22 @@ function fmtDur(sec){
 function dayName(d, style){ return d.toLocaleDateString("en-US", {weekday: style || "short"}); }
 function monthName(d, style){ return d.toLocaleDateString("en-US", {month: style || "long"}); }
 function verInfo(){ if (settings.ver === "gnvm") settings.ver = "gnv"; return VERSIONS.filter(function(v){ return v.id === settings.ver; })[0] || VERSIONS[0]; }
-function bookName(i){ return verInfo().lang === "fr" ? FR[i] : EN[i]; }
+var BN = {en: EN, fr: FR, es: ["Génesis", "Éxodo", "Levítico", "Números", "Deuteronomio", "Josué", "Jueces", "Rut", "1 Samuel", "2 Samuel", "1 Reyes", "2 Reyes", "1 Crónicas", "2 Crónicas", "Esdras", "Nehemías", "Ester", "Job", "Salmos", "Proverbios", "Eclesiastés", "Cantares", "Isaías", "Jeremías", "Lamentaciones", "Ezequiel", "Daniel", "Oseas", "Joel", "Amós", "Abdías", "Jonás", "Miqueas", "Nahum", "Habacuc", "Sofonías", "Hageo", "Zacarías", "Malaquías", "Mateo", "Marcos", "Lucas", "Juan", "Hechos", "Romanos", "1 Corintios", "2 Corintios", "Gálatas", "Efesios", "Filipenses", "Colosenses", "1 Tesalonicenses", "2 Tesalonicenses", "1 Timoteo", "2 Timoteo", "Tito", "Filemón", "Hebreos", "Santiago", "1 Pedro", "2 Pedro", "1 Juan", "2 Juan", "3 Juan", "Judas", "Apocalipsis"], de: ["1. Mose", "2. Mose", "3. Mose", "4. Mose", "5. Mose", "Josua", "Richter", "Ruth", "1. Samuel", "2. Samuel", "1. Könige", "2. Könige", "1. Chronik", "2. Chronik", "Esra", "Nehemia", "Ester", "Hiob", "Psalmen", "Sprüche", "Prediger", "Hohelied", "Jesaja", "Jeremia", "Klagelieder", "Hesekiel", "Daniel", "Hosea", "Joel", "Amos", "Obadja", "Jona", "Micha", "Nahum", "Habakuk", "Zephanja", "Haggai", "Sacharja", "Maleachi", "Matthäus", "Markus", "Lukas", "Johannes", "Apostelgeschichte", "Römer", "1. Korinther", "2. Korinther", "Galater", "Epheser", "Philipper", "Kolosser", "1. Thessalonicher", "2. Thessalonicher", "1. Timotheus", "2. Timotheus", "Titus", "Philemon", "Hebräer", "Jakobus", "1. Petrus", "2. Petrus", "1. Johannes", "2. Johannes", "3. Johannes", "Judas", "Offenbarung"], it: ["Genesi", "Esodo", "Levitico", "Numeri", "Deuteronomio", "Giosuè", "Giudici", "Rut", "1 Samuele", "2 Samuele", "1 Re", "2 Re", "1 Cronache", "2 Cronache", "Esdra", "Neemia", "Ester", "Giobbe", "Salmi", "Proverbi", "Ecclesiaste", "Cantico dei Cantici", "Isaia", "Geremia", "Lamentazioni", "Ezechiele", "Daniele", "Osea", "Gioele", "Amos", "Abdia", "Giona", "Michea", "Naum", "Abacuc", "Sofonia", "Aggeo", "Zaccaria", "Malachia", "Matteo", "Marco", "Luca", "Giovanni", "Atti", "Romani", "1 Corinzi", "2 Corinzi", "Galati", "Efesini", "Filippesi", "Colossesi", "1 Tessalonicesi", "2 Tessalonicesi", "1 Timoteo", "2 Timoteo", "Tito", "Filemone", "Ebrei", "Giacomo", "1 Pietro", "2 Pietro", "1 Giovanni", "2 Giovanni", "3 Giovanni", "Giuda", "Apocalisse"], pt: ["Gênesis", "Êxodo", "Levítico", "Números", "Deuteronômio", "Josué", "Juízes", "Rute", "1 Samuel", "2 Samuel", "1 Reis", "2 Reis", "1 Crônicas", "2 Crônicas", "Esdras", "Neemias", "Ester", "Jó", "Salmos", "Provérbios", "Eclesiastes", "Cantares", "Isaías", "Jeremias", "Lamentações", "Ezequiel", "Daniel", "Oseias", "Joel", "Amós", "Obadias", "Jonas", "Miqueias", "Naum", "Habacuque", "Sofonias", "Ageu", "Zacarias", "Malaquias", "Mateus", "Marcos", "Lucas", "João", "Atos", "Romanos", "1 Coríntios", "2 Coríntios", "Gálatas", "Efésios", "Filipenses", "Colossenses", "1 Tessalonicenses", "2 Tessalonicenses", "1 Timóteo", "2 Timóteo", "Tito", "Filemom", "Hebreus", "Tiago", "1 Pedro", "2 Pedro", "1 João", "2 João", "3 João", "Judas", "Apocalipse"], ru: ["Бытие", "Исход", "Левит", "Числа", "Второзаконие", "Иисус Навин", "Судей", "Руфь", "1 Царств", "2 Царств", "3 Царств", "4 Царств", "1 Паралипоменон", "2 Паралипоменон", "Ездра", "Неемия", "Есфирь", "Иов", "Псалтирь", "Притчи", "Екклесиаст", "Песня Песней", "Исаия", "Иеремия", "Плач Иеремии", "Иезекииль", "Даниил", "Осия", "Иоиль", "Амос", "Авдий", "Иона", "Михей", "Наум", "Аввакум", "Софония", "Аггей", "Захария", "Малахия", "От Матфея", "От Марка", "От Луки", "От Иоанна", "Деяния", "Римлянам", "1 Коринфянам", "2 Коринфянам", "Галатам", "Ефесянам", "Филиппийцам", "Колоссянам", "1 Фессалоникийцам", "2 Фессалоникийцам", "1 Тимофею", "2 Тимофею", "Титу", "Филимону", "Евреям", "Иакова", "1 Петра", "2 Петра", "1 Иоанна", "2 Иоанна", "3 Иоанна", "Иуды", "Откровение"], zh: ["創世記", "出埃及記", "利未記", "民數記", "申命記", "約書亞記", "士師記", "路得記", "撒母耳記上", "撒母耳記下", "列王紀上", "列王紀下", "歷代志上", "歷代志下", "以斯拉記", "尼希米記", "以斯帖記", "約伯記", "詩篇", "箴言", "傳道書", "雅歌", "以賽亞書", "耶利米書", "耶利米哀歌", "以西結書", "但以理書", "何西阿書", "約珥書", "阿摩司書", "俄巴底亞書", "約拿書", "彌迦書", "那鴻書", "哈巴谷書", "西番雅書", "哈該書", "撒迦利亞書", "瑪拉基書", "馬太福音", "馬可福音", "路加福音", "約翰福音", "使徒行傳", "羅馬書", "哥林多前書", "哥林多後書", "加拉太書", "以弗所書", "腓立比書", "歌羅西書", "帖撒羅尼迦前書", "帖撒羅尼迦後書", "提摩太前書", "提摩太後書", "提多書", "腓利門書", "希伯來書", "雅各書", "彼得前書", "彼得後書", "約翰一書", "約翰二書", "約翰三書", "猶大書", "啟示錄"], zs: ["创世记", "出埃及记", "利未记", "民数记", "申命记", "约书亚记", "士师记", "路得记", "撒母耳记上", "撒母耳记下", "列王纪上", "列王纪下", "历代志上", "历代志下", "以斯拉记", "尼希米记", "以斯帖记", "约伯记", "诗篇", "箴言", "传道书", "雅歌", "以赛亚书", "耶利米书", "耶利米哀歌", "以西结书", "但以理书", "何西阿书", "约珥书", "阿摩司书", "俄巴底亚书", "约拿书", "弥迦书", "那鸿书", "哈巴谷书", "西番雅书", "哈该书", "撒迦利亚书", "玛拉基书", "马太福音", "马可福音", "路加福音", "约翰福音", "使徒行传", "罗马书", "哥林多前书", "哥林多后书", "加拉太书", "以弗所书", "腓立比书", "歌罗西书", "帖撒罗尼迦前书", "帖撒罗尼迦后书", "提摩太前书", "提摩太后书", "提多书", "腓利门书", "希伯来书", "雅各书", "彼得前书", "彼得后书", "约翰一书", "约翰二书", "约翰三书", "犹大书", "启示录"], nl: ["Genesis", "Exodus", "Leviticus", "Numeri", "Deuteronomium", "Jozua", "Richteren", "Ruth", "1 Samuël", "2 Samuël", "1 Koningen", "2 Koningen", "1 Kronieken", "2 Kronieken", "Ezra", "Nehemia", "Esther", "Job", "Psalmen", "Spreuken", "Prediker", "Hooglied", "Jesaja", "Jeremia", "Klaagliederen", "Ezechiël", "Daniël", "Hosea", "Joël", "Amos", "Obadja", "Jona", "Micha", "Nahum", "Habakuk", "Zefanja", "Haggai", "Zacharia", "Maleachi", "Mattheüs", "Markus", "Lukas", "Johannes", "Handelingen", "Romeinen", "1 Korinthe", "2 Korinthe", "Galaten", "Efeze", "Filippenzen", "Kolossenzen", "1 Thessalonicenzen", "2 Thessalonicenzen", "1 Timotheüs", "2 Timotheüs", "Titus", "Filémon", "Hebreeën", "Jakobus", "1 Petrus", "2 Petrus", "1 Johannes", "2 Johannes", "3 Johannes", "Judas", "Openbaring"]};
+function vlang(){ return verInfo().lang || "en"; }
+function bookName(i){ return (BN[vlang()] || EN)[i]; }
 var AB_EN = ["Gen","Exod","Lev","Num","Deut","Josh","Judg","Ruth","1 Sam","2 Sam","1 Kgs","2 Kgs","1 Chr","2 Chr","Ezra","Neh","Esth","Job","Ps","Prov","Eccl","Song","Isa","Jer","Lam","Ezek","Dan","Hos","Joel","Amos","Obad","Jonah","Mic","Nah","Hab","Zeph","Hag","Zech","Mal","Matt","Mark","Luke","John","Acts","Rom","1 Cor","2 Cor","Gal","Eph","Phil","Col","1 Thess","2 Thess","1 Tim","2 Tim","Titus","Phlm","Heb","Jas","1 Pet","2 Pet","1 John","2 John","3 John","Jude","Rev"];
 var AB_FR = ["Gen","Ex","L\u00e9v","Nb","Dt","Jos","Jg","Ru","1 S","2 S","1 R","2 R","1 Ch","2 Ch","Esd","N\u00e9","Est","Job","Ps","Pr","Ec","Ct","\u00c9s","J\u00e9","La","\u00c9z","Da","Os","Jo\u00eb","Am","Ab","Jon","Mi","Na","Ha","So","Ag","Za","Mal","Mt","Mc","Lc","Jn","Ac","Ro","1 Co","2 Co","Ga","\u00c9p","Ph","Col","1 Th","2 Th","1 Ti","2 Ti","Tit","Phm","H\u00e9","Ja","1 P","2 P","1 Jn","2 Jn","3 Jn","Jud","Ap"];
-function bookAbbr(i){ return verInfo().lang === "fr" ? AB_FR[i] : AB_EN[i]; }
+var BA = {en: AB_EN, fr: AB_FR};
+function abbrOf(n){
+  if (/[\u2e80-\u9fff]/.test(n)) return n.length > 4 ? n.slice(0, 4) : n;
+  var m = n.match(/^(\d\.?\s*)?(.*)$/), b = m[2];
+  return b.length <= 5 ? n : (m[1] || "") + b.slice(0, 3) + ".";
+}
+function bookAbbr(i){ var l = vlang(); return BA[l] ? BA[l][i] : abbrOf(bookName(i)); }
+var LT = {en: {ch: "Chapter ", pick: "Choose a book", ot: "Old Testament", nt: "New Testament", all: "All books", prev: "In the beginning God created the heaven and the earth."}, fr: {ch: "Chapitre ", pick: "Choisir un livre", ot: "Ancien Testament", nt: "Nouveau Testament", all: "Tous les livres", prev: "Au commencement, Dieu créa les cieux et la terre."}, es: {ch: "Capítulo ", pick: "Elegir un libro", ot: "Antiguo Testamento", nt: "Nuevo Testamento", all: "Todos los libros", prev: "En el principio crió Dios los cielos y la tierra."}, de: {ch: "Kapitel ", pick: "Buch wählen", ot: "Altes Testament", nt: "Neues Testament", all: "Alle Bücher", prev: "Am Anfang schuf Gott Himmel und Erde."}, it: {ch: "Capitolo ", pick: "Scegli un libro", ot: "Antico Testamento", nt: "Nuovo Testamento", all: "Tutti i libri", prev: "Nel principio Iddio creò i cieli e la terra."}, pt: {ch: "Capítulo ", pick: "Escolher um livro", ot: "Antigo Testamento", nt: "Novo Testamento", all: "Todos os livros", prev: "No princípio, criou Deus o céu e a terra."}, ru: {ch: "Глава ", pick: "Выбрать книгу", ot: "Ветхий Завет", nt: "Новый Завет", all: "Все книги", prev: "В начале сотворил Бог небо и землю."}, nl: {ch: "Hoofdstuk ", pick: "Kies een boek", ot: "Oude Testament", nt: "Nieuwe Testament", all: "Alle boeken", prev: "In den beginne schiep God den hemel en de aarde."}, zh: {ch: function(n){ return "\u7b2c" + n + "\u7ae0"; }, pick: "\u9078\u64c7\u66f8\u5377", ot: "\u820a\u7d04", nt: "\u65b0\u7d04", all: "\u6240\u6709\u66f8\u5377", prev: "\u8d77\u521d\u795e\u5275\u9020\u5929\u5730\u3002"}, zs: {ch: function(n){ return "\u7b2c" + n + "\u7ae0"; }, pick: "\u9009\u62e9\u4e66\u5377", ot: "\u65e7\u7ea6", nt: "\u65b0\u7ea6", all: "\u6240\u6709\u4e66\u5377", prev: "\u8d77\u521d\u795e\u521b\u9020\u5929\u5730\u3002"}};
+var LANGNAME = {en: "English", fr: "Fran\u00e7ais", es: "Espa\u00f1ol", de: "Deutsch", it: "Italiano", pt: "Portugu\u00eas", ru: "\u0420\u0443\u0441\u0441\u043a\u0438\u0439", zh: "\u4e2d\u6587 (\u7e41\u9ad4)", zs: "\u4e2d\u6587 (\u7b80\u4f53)", nl: "Nederlands"}, HTMLLANG = {zh: "zh-Hant", zs: "zh-Hans"};
 var PLAN_ABBR = {year:"1 Year", chron:"Chrono", thirty:"30 Days", "cat-law":"Law", "cat-history":"History", "cat-wisdom":"Wisdom", "cat-major":"Major prophets", "cat-minor":"Minor prophets", "cat-gospels":"Gospels", "cat-acts":"Acts", "cat-paul":"Paul", "cat-general":"General", "cat-rev":"Revelation"};
-function chapLabel(c){ return (verInfo().lang === "fr" ? "Chapitre " : "Chapter ") + (c + 1); }
+function chapLabel(c){ var t = LT[vlang()] || LT.en; return typeof t.ch === "function" ? t.ch(c + 1) : t.ch + (c + 1); }
 function touchPrefs(){ prefsT = Date.now(); sset("bh:prefs_t", prefsT); cloudTouch("prefs"); }
 function savePos(){ sset("bh:pos", pos); touchPrefs(); }
 function saveDays(){
@@ -1118,11 +1151,25 @@ function b64ToBytes(b64){
   for (var i = 0; i < n; i++) a[i] = bin.charCodeAt(i);
   return a;
 }
+function fetchPack(url){
+  function net(){ return fetch(url).then(function(r){ if (!r.ok) throw new Error("download"); return r; }); }
+  var useCache = !!window.caches && /^https?:$/.test(location.protocol);
+  var get = useCache ? caches.open("bh-bibles-1").then(function(c){
+    return c.match(url).then(function(hit){ return hit || net().then(function(r){ try { c.put(url, r.clone()); } catch(e){} return r; }); });
+  }).catch(net) : net();
+  return get.then(function(r){ return r.arrayBuffer(); }).then(function(b){ return new Uint8Array(b); }, function(){ throw new Error("download"); });
+}
 function loadVersion(id){
   if (cache[id]) return Promise.resolve(cache[id]);
   if (typeof DecompressionStream === "undefined") return Promise.reject(new Error("nodecomp"));
-  var stream = new Blob([b64ToBytes(PACKS[id])]).stream().pipeThrough(new DecompressionStream("gzip"));
-  return new Response(stream).text().then(function(t){ cache[id] = JSON.parse(t); return cache[id]; });
+  var v = VERSIONS.filter(function(x){ return x.id === id; })[0], p;
+  if (PACKS[id]) p = Promise.resolve(b64ToBytes(PACKS[id]));
+  else if (v && v.file) p = fetchPack(v.file);
+  else return Promise.reject(new Error("nopack"));
+  return p.then(function(bytes){
+    var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    return new Response(stream).text();
+  }).then(function(t){ cache[id] = JSON.parse(t); return cache[id]; });
 }
 
 /* ---------- reader ---------- */
@@ -1136,6 +1183,7 @@ function renderChapter(mode){
   document.title = bookName(pos.b) + " " + (pos.c + 1) + " – Bible Hour";
   var box = $("text");
   box.innerHTML = "";
+  box.setAttribute("lang", HTMLLANG[vlang()] || vlang());
   box.appendChild(el("p", "loading", "Opening the Bible\u2026"));
   loadVersion(settings.ver).then(function(data){
     if (tok !== openToken) return;
@@ -1164,10 +1212,12 @@ function renderChapter(mode){
     box.appendChild(frag);
     if (mode === "restore") window.scrollTo(0, pos.y || 0); else window.scrollTo(0, 0);
     if (settings.ver === "gnvm") setTimeout(gnvCodes, 400);
-  }).catch(function(){
+  }).catch(function(e){
     if (tok !== openToken) return;
     box.innerHTML = "";
-    box.appendChild(el("p", "loading", "This browser can\u2019t open the Bible files. Please update your browser and try again."));
+    var dl = e && (e.message === "download" || e.message === "nopack");
+    box.appendChild(el("p", "loading", dl ? "Could not download this Bible. Check your connection and try again. The first time you open it, it needs the internet." : "This browser can\u2019t open the Bible files. Please update your browser and try again."));
+    if (dl){ var rt = el("button", "pbtn go", "Try again"); rt.addEventListener("click", function(){ renderChapter(mode); }); box.appendChild(rt); }
   });
   var isFirst = pos.b === 0 && pos.c === 0;
   $("prevBtn").disabled = isFirst;
@@ -1292,7 +1342,7 @@ $("text").addEventListener("click", function(e){
 function renderMarksCount(){ var n = $("hMarksN"); if (n) n.textContent = String(liveMarks().length); }
 function refOfKey(k){
   var p = k.split("|"), v = VERSIONS.filter(function(x){ return x.id === p[0]; })[0];
-  return {ver: v ? v.short : p[0], ref: (v && v.lang === "fr" ? FR : EN)[+p[1]] + " " + (+p[2] + 1) + ":" + p[3], pos: +p[4] + 1};
+  return {ver: v ? v.short : p[0], ref: (BN[v ? v.lang : "en"] || EN)[+p[1]] + " " + (+p[2] + 1) + ":" + p[3], pos: +p[4] + 1};
 }
 function marksText(){
   return liveMarks().map(function(k){
@@ -1508,6 +1558,7 @@ function act(){
   if (paper.on && paper.run && !paper.ask && lastAct - paper.last < 5000) paper.conf = lastAct;
 }
 /* time allowed without a touch: 2 seconds for each word on the screen, 1 to 5 minutes */
+function wordsIn(t){ var l = vlang(); return (l === "zh" || l === "zs") ? Math.ceil(t.length / 1.8) : t.split(/\s+/).length; }
 function calcIdle(){
   var vs = $("text").querySelectorAll(".v"), vh = window.innerHeight, n = 0, i, r, vis;
   for (i = 0; i < vs.length; i++){
@@ -1515,7 +1566,7 @@ function calcIdle(){
     if (r.bottom <= 0 || r.height <= 0) continue;
     if (r.top >= vh) break;
     vis = (Math.min(r.bottom, vh) - Math.max(r.top, 0)) / r.height;
-    n += vs[i].textContent.split(/\s+/).length * Math.max(0, Math.min(1, vis));
+    n += wordsIn(vs[i].textContent) * Math.max(0, Math.min(1, vis));
   }
   return Math.max(IDLE_MIN, Math.min(IDLE_MAX, n * WORD_MS));
 }
@@ -1664,11 +1715,11 @@ document.addEventListener("touchmove", function(e){
 });
 
 function pickBooks(){
-  $("pickTitle").textContent = verInfo().lang === "fr" ? "Choisir un livre" : "Choose a book";
+  $("pickTitle").textContent = (LT[vlang()] || LT.en).pick;
   var body = $("pickBody");
   body.innerHTML = "";
-  var oldT = verInfo().lang === "fr" ? "Ancien Testament" : "Old Testament";
-  var newT = verInfo().lang === "fr" ? "Nouveau Testament" : "New Testament";
+  var oldT = (LT[vlang()] || LT.en).ot;
+  var newT = (LT[vlang()] || LT.en).nt;
   [[oldT, 0, OT_COUNT], [newT, OT_COUNT, 66]].forEach(function(sec){
     body.appendChild(el("h3", null, sec[0]));
     var grid = el("div", "chips");
@@ -1688,7 +1739,7 @@ function pickChapters(bi){
   $("pickTitle").textContent = bookName(bi);
   var body = $("pickBody");
   body.innerHTML = "";
-  var back = el("button", "back", "\u2190 " + (verInfo().lang === "fr" ? "Tous les livres" : "All books"));
+  var back = el("button", "back", "\u2190 " + (LT[vlang()] || LT.en).all);
   back.addEventListener("click", pickBooks);
   body.appendChild(back);
   var grid = el("div", "nums");
@@ -1714,7 +1765,9 @@ $("pickBtn").addEventListener("click", function(){ pickBooks(); openSheet($("pic
 
 function buildVersions(container, after){
   container.innerHTML = "";
+  var lastLang = "";
   VERSIONS.forEach(function(v){
+    if (v.lang !== lastLang){ lastLang = v.lang; container.appendChild(el("h3", "vgrp", LANGNAME[v.lang] || v.lang)); }
     var b = el("button", "ver");
     var left = el("div");
     left.appendChild(el("b", null, v.name));
@@ -1835,7 +1888,7 @@ function renderTextControls(){
   seg($("hWeight"), [["Regular", false], ["Bold", true]],
     function(v){ return settings.bold === v; },
     function(v){ settings.bold = v; setText(); });
-  $("hPrev").textContent = verInfo().lang === "fr" ? "Au commencement, Dieu cr\u00e9a les cieux et la terre." : "In the beginning God created the heaven and the earth.";
+  $("hPrev").textContent = (LT[vlang()] || LT.en).prev;
 }
 function setGoal(v){ settings.goal = v; saveSettings(); renderSettings(); renderHome(); if (screen === "plans") renderPlans(); }
 function renderGoalChips(){
@@ -3438,6 +3491,19 @@ document.addEventListener("pointermove", function(e){
 window.addEventListener("scroll", function(){ pressEnd(false); }, {passive: true});
 window.addEventListener("blur", function(){ pressEnd(false); });
 document.addEventListener("visibilitychange", function(){ if (document.hidden) pressEnd(false); });
+
+/* ---------- licenses and sources ---------- */
+var LIC = {"kjv": ["1611 (1769 edition)", "Public domain."], "asv": ["1901", "Public domain."], "akjv": ["1999, the King James text with modern words", "Public domain. Released by its editor."], "web": ["2000", "Public domain. Released by its editors."], "gnv": ["1599", "Public domain."], "lsg": ["1910", "Public domain."], "rv09": ["1909", "Public domain (published before 1929). Text: Open Bibles collection, github.com/seven1m/open-bibles."], "lut": ["1912", "Public domain (published before 1929). Text: Free Bible Software Group, through the Open Bibles collection."], "riv": ["1924", "Public domain (published before 1929). Text: Free Bible Software Group, through the Open Bibles collection."], "tb": ["1917", "Public domain (published before 1929). Text: github.com/thiagobodruk/bible."], "syn": ["1876", "Public domain (published before 1929). Text: Zefania XML Bible collection, through the Open Bibles collection."], "cuv": ["1919, traditional characters", "Public domain (published before 1929). Text: Open Bibles collection."], "cuvs": ["1919, simplified characters", "Public domain (published before 1929). Text: Open Bibles collection."], "svv": ["1637", "Public domain. Text: Zefania XML Bible collection, through the Open Bibles collection."]};
+function renderLic(){
+  var box = $("licBody"); box.innerHTML = "";
+  VERSIONS.forEach(function(v){
+    var l = LIC[v.id] || ["", ""], it = el("div", "licrow");
+    it.appendChild(el("b", null, v.name + (v.short ? " (" + v.short + ")" : "")));
+    it.appendChild(el("span", null, (l[0] ? l[0] + ". " : "") + l[1]));
+    box.appendChild(it);
+  });
+}
+$("licBtn").addEventListener("click", function(){ renderLic(); openSheet($("licSheet")); });
 
 /* ---------- gold 3D titles ---------- */
 var GOLD = {"A":[18,130],"B":[184,103],"C":[323,120],"D":[479,114],"E":[629,97],"F":[762,95],"G":[893,111],"H":[1040,107],"I":[1183,37],"J":[1256,97],"K":[1389,111],"L":[1536,89],"M":[1661,121],"N":[1818,107],"O":[1961,116],"P":[2113,103],"Q":[2252,116],"R":[2404,106],"S":[2546,104],"T":[2686,108],"U":[2830,105],"V":[2971,115],"W":[3122,149],"X":[3307,114],"Y":[3457,116],"Z":[3609,96],"a":[3741,92],"b":[3869,102],"c":[4007,93],"d":[4136,102],"e":[4274,99],"f":[4409,73],"g":[4518,93],"h":[4647,88],"i":[4771,36],"j":[4843,52],"k":[4931,98],"l":[5065,48],"m":[5149,149],"n":[5334,97],"o":[5467,108],"p":[5611,106],"q":[5753,105],"r":[5894,70],"s":[6000,87],"t":[6123,76],"u":[6235,100],"v":[6371,110],"w":[6517,156],"x":[6709,104],"y":[6849,110],"z":[6995,88],"0":[7119,102],"1":[7257,64],"2":[7357,95],"3":[7488,99],"4":[7623,100],"5":[7759,96],"6":[7891,96],"7":[8023,90],"8":[8149,98],"9":[8283,98],":":[8417,44],".":[8497,44],"%":[8577,148],"-":[8761,85],"&":[8882,122],",":[9040,40]}, GU = 167.0;
