@@ -1018,14 +1018,14 @@ var VERSIONS = [
   {id:"web", short:"WEB", name:"World English Bible", note:"2000, modern English", lang:"en"},
   {id:"gnv", short:"GNV", name:"Geneva Bible, original spelling", note:"1599, English, as first printed", lang:"en"},
   {id:"lsg", short:"LSG", name:"Louis Segond", note:"1910, Fran\u00e7ais", lang:"fr"},
-  {id:"rv09", short:"RV1909", name:"Reina-Valera 1909", note:"1909, Espa\u00f1ol", lang:"es", file:"bibles/es.bin"},
-  {id:"lut", short:"LUT1912", name:"Lutherbibel 1912", note:"1912, Deutsch", lang:"de", file:"bibles/de.bin"},
-  {id:"riv", short:"RIV1924", name:"Riveduta (Luzzi) 1924", note:"1924, Italiano", lang:"it", file:"bibles/it.bin"},
-  {id:"tb", short:"TB1917", name:"Tradu\u00e7\u00e3o Brasileira 1917", note:"1917, Portugu\u00eas", lang:"pt", file:"bibles/pt.bin"},
-  {id:"syn", short:"\u0421\u0418\u041d", name:"\u0421\u0438\u043d\u043e\u0434\u0430\u043b\u044c\u043d\u044b\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434 1876", note:"1876, \u0420\u0443\u0441\u0441\u043a\u0438\u0439", lang:"ru", file:"bibles/ru.bin"},
-  {id:"cuv", short:"CUV", name:"\u548c\u5408\u672c Chinese Union Version 1919", note:"1919, \u7e41\u9ad4\u4e2d\u6587", lang:"zh", file:"bibles/zh.bin"},
-  {id:"cuvs", short:"CUVS", name:"\u548c\u5408\u672c Chinese Union Version 1919", note:"1919, \u7b80\u4f53\u4e2d\u6587", lang:"zs", file:"bibles/zs.bin"},
-  {id:"svv", short:"SV1637", name:"Statenvertaling 1637", note:"1637, Nederlands", lang:"nl", file:"bibles/nl.bin"}
+  {id:"rv09", short:"RV1909", name:"Reina-Valera 1909", note:"1909, Espa\u00f1ol", lang:"es", file:"bibles/es.txt"},
+  {id:"lut", short:"LUT1912", name:"Lutherbibel 1912", note:"1912, Deutsch", lang:"de", file:"bibles/de.txt"},
+  {id:"riv", short:"RIV1924", name:"Riveduta (Luzzi) 1924", note:"1924, Italiano", lang:"it", file:"bibles/it.txt"},
+  {id:"tb", short:"TB1917", name:"Tradu\u00e7\u00e3o Brasileira 1917", note:"1917, Portugu\u00eas", lang:"pt", file:"bibles/pt.txt"},
+  {id:"syn", short:"\u0421\u0418\u041d", name:"\u0421\u0438\u043d\u043e\u0434\u0430\u043b\u044c\u043d\u044b\u0439 \u043f\u0435\u0440\u0435\u0432\u043e\u0434 1876", note:"1876, \u0420\u0443\u0441\u0441\u043a\u0438\u0439", lang:"ru", file:"bibles/ru.txt"},
+  {id:"cuv", short:"CUV", name:"\u548c\u5408\u672c Chinese Union Version 1919", note:"1919, \u7e41\u9ad4\u4e2d\u6587", lang:"zh", file:"bibles/zh.txt"},
+  {id:"cuvs", short:"CUVS", name:"\u548c\u5408\u672c Chinese Union Version 1919", note:"1919, \u7b80\u4f53\u4e2d\u6587", lang:"zs", file:"bibles/zs.txt"},
+  {id:"svv", short:"SV1637", name:"Statenvertaling 1637", note:"1637, Nederlands", lang:"nl", file:"bibles/nl.txt"}
 ];
 var OT_COUNT = 39, TOTAL_CH = 1189, IDLE_MIN = 60000, IDLE_MAX = 300000, IDLE_GRACE = 30000, WORD_MS = 2000, PAPER_CHECK = 1800000, PAPER_MAXADD = 10800000;
 
@@ -1157,7 +1157,7 @@ function fetchPack(url){
   var get = useCache ? caches.open("bh-bibles-1").then(function(c){
     return c.match(url).then(function(hit){ return hit || net().then(function(r){ try { c.put(url, r.clone()); } catch(e){} return r; }); });
   }).catch(net) : net();
-  return get.then(function(r){ return r.arrayBuffer(); }).then(function(b){ return new Uint8Array(b); }, function(){ throw new Error("download"); });
+  return get.then(function(r){ return r.text(); }).then(function(t){ return b64ToBytes(t.replace(/\s+/g, "")); }, function(){ throw new Error("download"); });
 }
 function loadVersion(id){
   if (cache[id]) return Promise.resolve(cache[id]);
