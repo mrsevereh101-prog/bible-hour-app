@@ -658,6 +658,19 @@ dialog.sheet .sheet-body,.chatl,.pflist{overscroll-behavior:contain}
 .hln{border-top:1px dashed var(--line);padding-top:6px}
 .hlrow{display:flex;gap:8px;flex-wrap:wrap}
 .nti .ntin{margin-top:8px}
+
+/* v13 fixes */
+.home .vt .vtx{-webkit-line-clamp:var(--vl,2)}
+.home .fq{-webkit-line-clamp:var(--ql,2)}
+.tri.pf{width:calc(var(--face,62px) + 22px)}
+.tri.pf .pface{width:var(--face,62px);height:var(--face,62px)}
+.tri.pf .pfl{transform:translate(calc(var(--face,62px) * .21),calc(var(--face,62px) * .18));font-size:calc(var(--face,62px) * .32)}
+.home .duo2 .tcard{justify-content:space-evenly}
+.home .duo2 .prow .hclock.long + .pct,.home .duo2 .tcard.tight .pct{display:none}
+.home .duo2 .tcard.tighter .prow .pv,.home .duo2 .tcard.tighter .prow .hclock{font-size:12.5px}
+.stats .tile{flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;padding:10px 10px}
+.stats .tile b{font-size:19px;white-space:nowrap}
+.stats .tile span{white-space:normal;line-height:1.2}
 </style>
 </head>
 <body>
@@ -1430,8 +1443,11 @@ function renderMarks(){
 
 /* ---------- screens ---------- */
 var screen = "home";
-function go(name){ location.hash = name; }
+var navAt = 0;
+function go(name){ navAt = Date.now(); location.hash = name; }
+function closeAllSheets(){ [].forEach.call(document.querySelectorAll("dialog[open]"), function(d){ closeSheet(d); }); }
 function route(){
+  if (Date.now() - navAt > 700) closeAllSheets();
   var h = (location.hash || "").replace("#", "");
   var next = (h === "read" || h === "history" || h === "plans") ? h : "home";
   if (screen === "read" && next !== "read"){ pos.y = window.scrollY || 0; savePos(); saveDays(); cloudFlushNow(); }
@@ -1782,8 +1798,12 @@ document.addEventListener("touchmove", function(e){
   if (!document.querySelector("dialog[open]")) return;
   var t = e.target;
   if (!t || !t.closest || t.closest("input,textarea,select,.cpbox")) return;
-  var sc = t.closest(".sheet-body, .chatl, .pflist");
-  if (!sc || sc.scrollHeight <= sc.clientHeight + 1) e.preventDefault();
+  var n = t, ok = false;
+  while (n && n.nodeType === 1 && n.tagName !== "DIALOG"){
+    if (n.matches(".sheet-body, .chatl, .pflist") && n.scrollHeight > n.clientHeight + 1){ ok = true; break; }
+    n = n.parentNode;
+  }
+  if (!ok) e.preventDefault();
 }, {passive: false});
 [].forEach.call(document.querySelectorAll("dialog.sheet"), function(d){
   d.addEventListener("click", function(e){
@@ -2412,7 +2432,61 @@ function fitGrid(){
   var rows = Math.floor((avail + 8) / (u + 8));
   return Math.max(3, Math.min(16, rows - N, Math.round((artPx + 8) / (u + 8)) + 1));
 }
+function votdInfo(){
+  var h = $("tVotd").querySelector(".bdh"), t = $("tVotdTxt"), k = visK() / uiZ();
+  if (!h || !t) return {hh: 22, lh: 20, full: 2};
+  var lh = parseFloat(getComputedStyle(t).lineHeight) || 20;
+  return {hh: h.getBoundingClientRect().height * k || 22, lh: lh, full: Math.max(1, Math.round(t.scrollHeight / lh))};
+}
+/* every tile gets the height it needs; the picture takes what is left, within limits */
+function autoLayout(){
+  var grid = $("hGrid"), r = grid.getBoundingClientRect();
+  if (!r.width) return false;
+  fitSeen = fitKey();
+  var W = grid.clientWidth || r.width, avail = viewH() - (r.top * visK() + (window.scrollY || 0)) / uiZ() - 14;
+  var ideal = W / 1.833, vi = votdInfo(), vl = Math.min(vi.full, 2), GAP = 8, gap = GAP;
+  var h = {top: 98, wt: 124, vb: 74, votd: Math.ceil(vi.hh + vl * vi.lh + 32)};
+  var fixed = h.top + h.wt + h.vb + h.votd + 4 * GAP, art = avail - fixed;
+  var artMin = Math.max(100, ideal * 0.55), artMax = ideal * 1.06;
+  if (art > artMax){
+    /* a tall screen: show more of the verse, give the tiles more room, then widen the gaps */
+    var extra = art - artMax; art = artMax;
+    var more = Math.max(0, Math.min(vi.full - vl, 2, Math.floor(extra / vi.lh)));
+    vl += more; h.votd += more * vi.lh; extra -= more * vi.lh;
+    var base = h.top + h.wt + h.vb, f = Math.min(extra, base * 0.45) / base;
+    h.top *= 1 + f; h.wt *= 1 + f; h.vb *= 1 + f; extra -= base * f;
+    var gg = Math.min(extra, 4 * 8); gap = GAP + gg / 4; extra -= gg;
+    art += Math.max(0, Math.min(extra, ideal * 1.12 - artMax));
+  } else if (art < ideal * 0.8){
+    /* a short screen: tighten the tiles a little before the picture gets small; if it still does not fit, the page scrolls */
+    if (fixed - 34 + artMin - avail <= 40){
+      var t = Math.min(1, (ideal * 0.8 - art) / 34);
+      h.top -= 6 * t; h.wt -= 20 * t; h.vb -= 8 * t; art += 34 * t;
+      art = Math.max(artMin, art);
+    } else art = Math.max(artMin, ideal * 0.8);
+  }
+  h.art = art;
+  grid.style.gridTemplateRows = layout.order.map(function(id){ return id === "votd" ? "auto" : Math.round(h[id]) + "px"; }).join(" ");
+  grid.style.rowGap = Math.round(gap) + "px";
+  grid.style.setProperty("--vl", vl);
+  grid.style.setProperty("--ql", h.top >= 122 ? 3 : 2);
+  grid.style.setProperty("--face", Math.round(Math.max(50, Math.min(96, h.top - 36))) + "px");
+  layout.order.forEach(function(id, i){
+    var b = gridBlock(id); if (!b) return;
+    b.style.order = i; b.style.gridColumn = "1 / -1"; b.style.gridRow = "auto"; b.setAttribute("data-w", 2);
+  });
+  /* when the numbers do not fit beside their titles, drop the percent first, then use smaller numbers */
+  var tc = grid.querySelector(".tcard");
+  if (tc){
+    tc.classList.remove("tight"); tc.classList.remove("tighter");
+    if (tc.scrollWidth > tc.clientWidth + 1){ tc.classList.add("tight"); if (tc.scrollWidth > tc.clientWidth + 1) tc.classList.add("tighter"); }
+  }
+  return true;
+}
 function applyLayout(){
+  var grid = $("hGrid");
+  if (layout.auto && autoLayout()){ fitArt(); return; }
+  grid.style.gridTemplateRows = ""; grid.style.rowGap = "";
   var artH = fitGrid();
   layout.order.forEach(function(id, i){
     var b = gridBlock(id), s = layout.sizes[id];
@@ -2615,10 +2689,11 @@ function mergeNotes(cd){
 function mergeMarks(cd){
   var m = cd.m || {};
   for (var k in m) if (!marks[k] || (m[k].t || 0) > (marks[k].t || 0)) marks[k] = m[k];
-  sset("bh:marks", marks);
   var cut = Date.now() - 90 * 86400000;
   for (k in marks) if (marks[k].d && (marks[k].t || 0) < cut) delete marks[k];
+  sset("bh:marks", marks);
   renderMarksCount();
+  if (screen === "home") renderNoteTile();
   return {m: marks};
 }
 function mergePP(id, cd){
@@ -2697,6 +2772,10 @@ function sbSignedOut(){
   board.name = null; board.rows = null; board.loadedFor = null; sset("bh:bname", null);
   boardTop.rows = null; boardTop.at = 0;
   clearTimeout(flushTimer); flushTimer = null;
+  if (typeof cht === "object" && cht){ cht.rows = null; cht.mode = null; cht.err = null; cht.at = 0; cht.pushed = false; }
+  if (typeof thoughts === "object" && thoughts){ thoughts.rows = null; thoughts.err = null; thoughts.at = 0; }
+  if (typeof reacts === "object" && reacts){ reacts.ok = false; reacts.rows = []; }
+  if (typeof feedDraw === "function"){ feedI = 0; try { feedDraw(); } catch(e){} }
   setSync();
 }
 function sbToken(){
@@ -2745,7 +2824,7 @@ function sbStart(){
     profPull().then(function(){ loadChat(); });
   });
 }
-var SB_WIPE = ["days", "mine", "others", "rs", "read", "plan", "marks", "notes", "pos", "done", "started", "layout", "prefs_t"];
+var SB_WIPE = ["days", "mine", "others", "rs", "read", "plan", "marks", "notes", "pos", "done", "started", "layout", "prefs_t", "prof", "paper"];
 function sbAuth(kind, email, pass){
   var path = kind === "up" ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password";
   return sbReq("POST", path, {email: email, password: pass}).then(function(j){
@@ -3510,6 +3589,11 @@ var press = null, AC = null;
 function pressOn(){ return settings.press !== false; }
 function soundOn(){ return settings.snd !== false; }
 function calm(){ try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch(e){ return false; } }
+function unlockSound(){
+  if (!soundOn()) return;
+  try { var Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return; if (!AC) AC = new Ctx(); if (AC.state === "suspended") AC.resume(); } catch(e){}
+}
+["touchend", "click"].forEach(function(ev){ document.addEventListener(ev, unlockSound, true); });
 function clickSound(down){
   if (!soundOn()) return;
   try {
@@ -3554,8 +3638,9 @@ function pressEnd(ok){
 document.addEventListener("click", function(e){
   if (!e.isTrusted || screen !== "home" || !pressOn() || calm()) return;
   var t = e.target && e.target.closest ? e.target.closest("#vHome button, #vHome [role=button]") : null;
-  if (!t || t.__wait) return;
+  if (!t) return;
   e.stopImmediatePropagation(); e.preventDefault();
+  if (t.__wait) return;
   t.__wait = 1;
   setTimeout(function(){ t.__wait = 0; t.click(); }, 150);
 }, true);
